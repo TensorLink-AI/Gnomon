@@ -1,142 +1,119 @@
-# Shared Gnomon and Ditto: implementation plan
+# Shared Gnomon with optional Ditto memory
 
-Status: milestone A design and offline storage validation on the `ditto` branch.
-There is no hosted server, authorization implementation or production Ditto connector
-in this change. The contracts below describe the intended hosted API, not new working
-commands. The existing local Python, CLI and stdio MCP interfaces remain unchanged.
+The `ditto` branch includes a working single-server MCP service in
+[`services/hosted`](../../services/hosted). It shares forecasts, decisions,
+observations, saved reviews and lessons across authenticated processes. Core
+Gnomon remains dependency-free; installing hosting is optional.
 
-The acceptance scenario is:
+The live acceptance probe has exercised Hermes's pinned MCP discovery, registry
+and transport against this service and a dedicated Ditto workspace: agent A
+records a forecast and decision, exits, a separate principal records actuals,
+Gnomon scores them, exports a lesson, restarts, and agent B retrieves and checks
+that lesson through a new Ditto connection. This is a deterministic integration
+probe, not an LLM strategy-quality benchmark. See [validation](validation.md).
 
-> Hermes A records a forecast and decision, then exits. An authorized process records
-> actuals. Gnomon reviews the forecast. A lesson is exported to Ditto. A fresh Ditto
-> session verifies the evidence. Hermes B retrieves that experience.
+## Start a local service
 
-This must survive client and server restarts. Shared forecasts, decisions, actuals,
-reviews and lessons are the first-release scope. Self-hosted Gnomon remains useful
-without Ditto. Automatic policy changes, managed customer provisioning, unified Ditto
-login and additional database backends are deferred.
+From this branch's checkout (the unreleased core transaction API is required):
 
-## Design records
-
-- [Ownership, evidence and durable-reference contracts](contracts.md)
-- [Current persistence audit and deployment envelope](persistence-audit.md)
-- [Validation evidence and its limits](validation.md)
-- [Machine-readable evidence reference](contracts/evidence-reference.schema.json)
-- [Acceptance fixtures](contracts/acceptance-fixtures.json)
-
-## Architecture boundary
-
-The core owns numerical validation, scoring and temporal evidence rules. A separately
-packaged service in this repository will own authentication, authorization, project
-resolution, request lifecycle and deployment. The Ditto adapter will connect a selected
-project graph to ledger evidence. The agent retains responsibility for proposing
-experiments and explaining decisions. Saved prose remains hypothesis data.
-
-Proposed structure, to be created in milestone B:
-
-```text
-src/gnomon/                         existing core package
-services/hosted/
-  pyproject.toml                   separate service dependencies
-  src/gnomon_hosted/
-    app.py
-    mcp/
-    auth/
-    projects/
-    persistence/
-    integrations/ditto/
-  tests/
-  deployment/
-docs/hosting/
+```bash
+python -m venv .venv-hosted
+.venv-hosted/bin/pip install . ./services/hosted
+.venv-hosted/bin/gnomon-hosted --root ./shared-state init
+.venv-hosted/bin/gnomon-hosted --root ./shared-state project-create --name research
 ```
 
-The hosted package must use public core operations, not duplicate scoring or depend
-permanently on private SQLite helpers. Core changes belong in the core and carry their
-own regression tests. A local installation must not acquire hosting dependencies.
+Keep the returned project ID. Create separate principals with only the scopes
+needed, substituting that ID below:
 
-## Milestone A: contracts and storage validation
+```bash
+.venv-hosted/bin/gnomon-hosted --root ./shared-state token-create \
+  --project PROJECT_ID --principal hermes-a \
+  --permissions evidence.read,forecast.create,decision.create
+.venv-hosted/bin/gnomon-hosted --root ./shared-state token-create \
+  --project PROJECT_ID --principal outcome-ingestion --permissions actual.create
+.venv-hosted/bin/gnomon-hosted --root ./shared-state token-create \
+  --project PROJECT_ID --principal reviewer \
+  --permissions evidence.read,decision.create,memory.export
+.venv-hosted/bin/gnomon-hosted --root ./shared-state serve
+```
 
-1. Inventory persistent records and transient handles on current remote main.
-2. Define project ownership, permissions, durable references and failure semantics.
-3. Exercise the current SQLite ledger through independent spawned processes.
-4. Check concurrent revision allocation, retries, snapshot reads and clean restoration.
-5. Record measured results with a bounded claim. Identify the gaps for milestone B.
+Each command displays its new token once. Store it in a secret manager or private
+file. The service stores only the SHA-256 verifier. Do not commit service data or
+credentials. Default bind is loopback port 8765. Built-in forecasting needs no
+external provider. Optional `project-create --providers /absolute/providers.toml`
+loads operator-owned Gnomon providers (including configured Ephemeris adapters).
+Remote callers cannot set provider configuration, read local paths, register
+Python entrypoints, or set recording timestamps.
 
-This milestone is an offline feasibility gate. Permission fixtures are requirements,
-not proof of an implemented access-control layer. Small synthetic probes do not certify
-production throughput or recovery objectives.
+## Connect Hermes or another MCP client
 
-## Milestone B: authenticated shared service
+The preferred URL is `http://127.0.0.1:8765/mcp` locally, or your TLS endpoint's
+`/mcp` remotely. For clients requiring legacy SSE, use `/sse`; its `/messages/`
+POST endpoint is authenticated and bound to the originating credential.
 
-Implement one single-server deployment and one backend. Start with the SQLite candidate
-only if the measured workload envelope remains appropriate. Add project-scoped, revocable
-credentials and resolve every object within authorized project membership. Audit local
-file loading, provider entrypoints and configuration before exposing any operation.
+Hermes `config.yaml`:
 
-Expose only the operations needed for the handoff through the canonical Gnomon dispatch
-layer. Use a maintained remote MCP implementation. Bind transient MCP state to its
-principal/project; durable resource resolution must also work in a fresh session. Core
-`data_ref`, `result_ref` and cache entries are not shared resources.
+```yaml
+mcp_servers:
+  gnomon:
+    url: http://127.0.0.1:8765/mcp
+    headers:
+      Authorization: "Bearer ${GNOMON_SERVICE_TOKEN}"
+    connect_timeout: 15
+    tool_timeout: 90
+```
 
-Implement durable operation receipts and a persisted review snapshot using core-produced
-evidence. Couple ledger effects and receipts transactionally, or implement an explicit
-recoverable operation marker. A service-control database commit followed by a ledger
-commit is not atomic. Do not claim exactly-once execution across provider boundaries.
+Set `GNOMON_SERVICE_TOKEN` in the Hermes process environment. Each process can
+use a different principal token for the same project. Reconnecting needs no
+previous MCP session. There is no Hermes runtime dependency in the service.
 
-Gate: two independent clients share evidence across an actual server restart; a third
-project cannot enumerate or access it. Inject failures before provider execution, after
-provider completion, after ledger commit and before response delivery. Document each
-result, including `outcome_unknown`.
+The tools are `gnomon_forecast`, `gnomon_ledger`, `gnomon_memory` and
+`gnomon_hosted`. The first three retain the core request shapes with the hosted
+allowlist and explicit cutoffs. Mutations require a durable `idempotency_key`.
+`gnomon_hosted` adds durable datasets, saved reviews, reference resolution,
+request receipts, and explicit Ditto delivery/recall. See [tool examples](tools.md).
 
-## Milestone C: Ditto handoff
+## Optional Ditto connection
 
-Validate Ditto's actual tool schemas, authentication, selected-graph behaviour, transport
-and duplicate-save semantics. Configure a graph-scoped connection per project. A Ditto
-credential is not automatically a Gnomon identity token. Keep separate credentials and
-trust boundaries until an identity integration is agreed.
+Create a dedicated Ditto workspace and claim its workspace-scoped API key. The
+OAuth connection of an interactive chat is separate from the server credential.
+Provide `DITTO_API_KEY` to the server process via your secret manager, systemd
+`EnvironmentFile`, or the Compose `.env` file. It is never put in a ledger.
 
-Export a compact lesson with durable references, provenance and checked facts separated
-from narrative. Persist an outbox after the ledger operation; reconcile uncertain saves
-before retrying. Search/fetch results are untrusted until project scope, evidence
-eligibility and the referenced ledger have been checked. Historical evaluations use
-frozen eligible memory; current semantic search is not a historical evidence snapshot.
+```bash
+.venv-hosted/bin/gnomon-hosted --root ./shared-state ditto-configure \
+  --project PROJECT_ID --token-env DITTO_API_KEY --graph YOUR_WORKSPACE_ALIAS
+```
 
-Gate: run the complete acceptance scenario with real Hermes and Ditto connections. An
-offline fake connector is useful for fault tests but cannot satisfy this gate. An outage
-leaves exports pending or uncertain without undoing local evidence. Revised outcomes
-produce explicit new versions; deletion disables pending exports before cleanup.
+Every connection checks Ditto's reported default graph against that alias. A key
+for another workspace is rejected. The connector discovers and validates the live
+MCP tool schemas before use. Changing connection configuration creates a new
+connection identity; old exports cannot silently move to the new destination.
+Rotating a key for the same graph/environment name retains that identity.
 
-## Milestone D: self-hosted beta
+Enqueue a lesson, then explicitly deliver it. No scheduler silently exports data.
+A failed preflight remains pending; an ambiguous save becomes uncertain. Use
+`export.reconcile` with the remote memory ID to fetch and compare its full content
+before acknowledging it. The source/vendor ID is stable, but the service does not
+assume a remote exactly-once guarantee. Ditto outages never roll back ledger data.
+Shared local recall remains available through `gnomon_memory` without Ditto.
 
-Ship a versioned container, Compose configuration, persistent storage, TLS instructions,
-credential lifecycle, health/readiness endpoints and structured logs. Add backup,
-clean-machine restore, migrations and tested rollback boundaries. Export and import the
-identity manifest with the evidence and artifacts; restore credentials separately.
+Recall is limited to acknowledged exports in the authorized project/connection.
+It fetches full contents, compares their digest and references, enforces evidence
+cutoffs, and recomputes a current review. Changed actuals are reported separately;
+a saved lesson keeps its original evidence. Checked numbers do not validate the
+narrative's causality or the real-world truth of submitted observations.
 
-Agree and measure concurrent-client, latency, database-size and recovery targets before
-release. Test them against representative histories and quantile payloads, not just the
-tiny milestone A fixtures. Installation must work without Ditto or Cloudflare.
+## Deployment and maintenance
 
-## Milestone E: benefit and deployment decisions
+See [operations](operations.md) for Compose/TLS, credentials, backup/restore,
+retention, upgrade/rollback, and explicit workload limits.
 
-Evaluate shared experience separately from automatic adaptation. Compare matched tasks
-with/without shared evidence: handoff success, stale/incorrect claims, numerical
-correctness, forecast quality, tokens, latency and cost. Freeze tasks and evidence
-cutoffs. Inspect the current main router and reproduce any remaining defects rather
-than assuming findings from an earlier working tree still apply.
+- [Ownership and evidence contracts](contracts.md)
+- [Initial persistence audit](persistence-audit.md)
+- [Validation evidence](validation.md)
+- [Durable reference schema](contracts/evidence-reference.schema.json)
 
-Managed hosting, a second backend, unified identity and automatic model selection are
-separate decisions after the service is measured. More API replicas are useful only
-after the storage, job and session design supports them.
-
-## External compatibility references
-
-- [MCP Streamable HTTP and legacy SSE compatibility](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)
-- [MCP authorization](https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization)
-- [Ditto developer quickstart](https://heyditto.ai/docs/developer-quickstart)
-- [Ditto inbound MCP connections](https://heyditto.ai/docs/mcp-connections/)
-- [Ditto outbound memory MCP](https://heyditto.ai/docs/mcp-server/)
-
-Ditto's published inbound guide specifies legacy SSE; its memory server documents
-Streamable HTTP. These are different directions. Negotiate and test the versions
-actually supported by each client before publishing a compatibility claim.
+Managed provisioning, unified Ditto login, additional database backends, automatic
+policy changes and active-active deployment remain out of scope.

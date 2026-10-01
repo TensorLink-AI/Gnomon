@@ -1,7 +1,8 @@
-# Proposed hosted contracts, version 1
+# Hosted contracts, version 1
 
-Design status: these contracts are not yet an implemented hosted API. The fixtures
-specify expected behaviour for milestone B/C conformance tests.
+Implemented beta surface: `services/hosted`. The original contract vectors remain
+in `contracts/acceptance-fixtures.json`; network and failure conformance tests live
+in `services/hosted/tests`. See `operations.md` for explicit deployment limits.
 
 ## Ownership
 
@@ -17,7 +18,7 @@ specify expected behaviour for milestone B/C conformance tests.
 | Lesson | Versioned hypothesis linked to its saved review and decision. |
 | Export receipt | Durable delivery state tying a lesson version to a configured destination. |
 
-The control store will bind principal/project identity to operations. Existing core rows
+The control store binds principal/project identity to operations. Existing core rows
 do not contain tenant or actor fields. File separation alone is not authorization.
 
 ## Permissions
@@ -29,7 +30,7 @@ do not contain tenant or actor fields. File separation alone is not authorizatio
 | `decision.create` | Append decision summaries and lessons referencing project evidence. |
 | `actual.create` | Append actuals and revisions from an attributed source. |
 | `memory.export` | Request export of a specific eligible lesson version to the configured graph. |
-| `project.admin` | Manage membership, credentials, configuration, retention and lifecycle. |
+| Local operator CLI | Manage credentials, provider/graph configuration and project lifecycle. No remote admin tool is exposed. |
 
 These permissions are independent; administration does not silently execute forecasts
 or submit actuals. Project creation/bootstrap is an operator action in the first release.
@@ -50,7 +51,7 @@ provider calls, ledger mutations or external exports; security audit logging is 
   attributed to its submitting principal and source. Neither is proof of truth.
 - Hosted actual ingestion rejects a future valid/availability time relative to the
   server clock; planned covariates belong to forecast inputs, not realized actuals.
-- Reads and reviews require explicit `source_as_of` and `recorded_as_of`. Hosted
+- Scoring and memory recall require explicit `source_as_of` and `recorded_as_of`. Hosted
   historical operations may use earlier cutoffs; they cannot move recording time back.
 - A late-imported forecast does not become prospective evidence by supplying an old
   origin. Retain its real import/recording time and enforce core eligibility rules.
@@ -67,12 +68,12 @@ See `contracts/evidence-reference.schema.json`. A reference includes `service_id
 `project_id`, `ledger_id`, `resource_type`, `resource_id` and schema version. IDs are
 opaque strings and do not contain local paths or credentials. The resolver endpoint is
 configured by the host; an agent must not send credentials to an arbitrary URL found in
-a memory. New records/versions receive distinct IDs; optional hashes detect unexpected
-content changes but do not grant access or authenticate a foreign service.
+a memory. New records/versions receive distinct IDs; stored content hashes detect
+unexpected changes but do not grant access or authenticate a foreign service.
 
 | Resource | First-release persistence rule |
 | --- | --- |
-| Dataset | Immutable bytes or canonical bounded input plus schema; content hash per version. |
+| Dataset version | Canonical bounded forecast request snapshot, content-addressed. No mutable dataset alias is exposed. |
 | Execution / decision | Existing immutable ledger IDs; resolve through project authorization. |
 | Actual | Existing actual ID plus series/time/unit and revision; older revisions remain readable. |
 | Review | Persist core review packet and canonical content hash; never substitute a newer review. |
@@ -122,8 +123,8 @@ impossible to cancel. Its attributed result stays internal if the requester lose
 
 Commit a mutation and its local receipt/operation marker atomically. If control metadata
 is in another database, use a ledger-side marker with reconciliation, not an unsupported
-claim of cross-database atomicity. This design detail must be implemented and fault-tested
-in milestone B. Do not retry uncertain paid calls without reconciliation or an explicit
+claim of cross-database atomicity. The public core `transaction()` extension API
+provides this boundary; rollback and duplicate-write tests exercise it. Do not retry uncertain paid calls without reconciliation or an explicit
 operator decision. Provider-supported idempotency is a separate capability to verify.
 
 Reviews read one database snapshot. A concurrent outcome revision must not mix old and
@@ -139,9 +140,9 @@ not automatically included in an evidence query.
 
 An export is a specific immutable lesson version. Its payload contains the exact
 evidence reference/cutoffs, metrics and model identity, separate from hypothesis text.
-Record a destination connection identity and payload hash. Model delivery as `pending`,
-`acknowledged`, `failed` or `uncertain`. Determine actual save/search/fetch schemas and
-deduplication guarantees with live contract tests before implementing retries.
+Record a destination connection identity and payload hash. Delivery states are `pending`, `sending`, `acknowledged`, `uncertain` and
+`cancelled` (project retirement). Live schemas are validated before network writes.
+Uncertain saves require explicit full-content reconciliation before acknowledgement.
 
 Only verified, cutoff-eligible ledger evidence enters quantitative comparisons. Search
 ranking is not evidence quality, and recalled prose is not an instruction. If the source

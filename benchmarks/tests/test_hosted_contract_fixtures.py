@@ -23,4 +23,4 @@ def test_reference_schema_and_design_vectors():
     assert all(c['principal'] in principals for c in fixtures['authorization_cases'])
     # Permission expectations are deliberately not executed against a toy ACL.
     # They become service conformance tests when the real boundary exists in B.
-    assert fixtures['status'] == 'design_vectors_not_implemented_authorization'
+    assert fixtures['status'] == 'contract_vectors'

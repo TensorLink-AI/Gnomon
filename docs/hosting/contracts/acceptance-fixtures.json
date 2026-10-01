@@ -1,38 +1,185 @@
 {
   "schema_version": "1",
-  "status": "design_vectors_not_implemented_authorization",
+  "status": "contract_vectors",
   "reference": {
-    "schema_version": "1", "service_id": "self-hosted-test", "project_id": "project-a",
-    "ledger_id": "ledger-a", "resource_type": "execution", "resource_id": "execution-a"
+    "schema_version": "1",
+    "service_id": "self-hosted-test",
+    "project_id": "project-a",
+    "ledger_id": "ledger-a",
+    "resource_type": "execution",
+    "resource_id": "execution-a"
   },
   "principals": [
-    {"id": "hermes-a", "project_id": "project-a", "permissions": ["evidence.read", "forecast.create", "decision.create"]},
-    {"id": "ingester", "project_id": "project-a", "permissions": ["actual.create"]},
-    {"id": "hermes-b", "project_id": "project-a", "permissions": ["evidence.read"]},
-    {"id": "exporter", "project_id": "project-a", "permissions": ["evidence.read", "memory.export"]},
-    {"id": "outsider", "project_id": "project-b", "permissions": ["evidence.read", "forecast.create"]}
+    {
+      "id": "hermes-a",
+      "project_id": "project-a",
+      "permissions": [
+        "evidence.read",
+        "forecast.create",
+        "decision.create"
+      ]
+    },
+    {
+      "id": "ingester",
+      "project_id": "project-a",
+      "permissions": [
+        "actual.create"
+      ]
+    },
+    {
+      "id": "hermes-b",
+      "project_id": "project-a",
+      "permissions": [
+        "evidence.read"
+      ]
+    },
+    {
+      "id": "exporter",
+      "project_id": "project-a",
+      "permissions": [
+        "evidence.read",
+        "memory.export"
+      ]
+    },
+    {
+      "id": "outsider",
+      "project_id": "project-b",
+      "permissions": [
+        "evidence.read",
+        "forecast.create"
+      ]
+    }
   ],
   "authorization_cases": [
-    {"name": "same_project_restart", "principal": "hermes-b", "project_id": "project-a", "permission": "evidence.read", "expected": "allow"},
-    {"name": "foreign_project_known_id", "principal": "outsider", "project_id": "project-a", "permission": "evidence.read", "expected": "deny_without_disclosing_record_existence"},
-    {"name": "forecaster_cannot_supply_actuals", "principal": "hermes-a", "project_id": "project-a", "permission": "actual.create", "expected": "deny"},
-    {"name": "ingester_cannot_forecast", "principal": "ingester", "project_id": "project-a", "permission": "forecast.create", "expected": "deny"},
-    {"name": "export_requires_permission", "principal": "hermes-b", "project_id": "project-a", "permission": "memory.export", "expected": "deny"},
-    {"name": "revoked_token_existing_session", "principal": "hermes-b", "project_id": "project-a", "permission": "evidence.read", "revoked": true, "expected": "deny"}
+    {
+      "name": "same_project_restart",
+      "principal": "hermes-b",
+      "project_id": "project-a",
+      "permission": "evidence.read",
+      "expected": "allow"
+    },
+    {
+      "name": "foreign_project_known_id",
+      "principal": "outsider",
+      "project_id": "project-a",
+      "permission": "evidence.read",
+      "expected": "deny_without_disclosing_record_existence"
+    },
+    {
+      "name": "forecaster_cannot_supply_actuals",
+      "principal": "hermes-a",
+      "project_id": "project-a",
+      "permission": "actual.create",
+      "expected": "deny"
+    },
+    {
+      "name": "ingester_cannot_forecast",
+      "principal": "ingester",
+      "project_id": "project-a",
+      "permission": "forecast.create",
+      "expected": "deny"
+    },
+    {
+      "name": "export_requires_permission",
+      "principal": "hermes-b",
+      "project_id": "project-a",
+      "permission": "memory.export",
+      "expected": "deny"
+    },
+    {
+      "name": "revoked_token_existing_session",
+      "principal": "hermes-b",
+      "project_id": "project-a",
+      "permission": "evidence.read",
+      "revoked": true,
+      "expected": "deny"
+    }
   ],
   "evidence_cases": [
-    {"name": "normal", "forecast": [12, 12], "actuals": [13, 14], "expected_mae": 1.5, "scoring_status": "complete"},
-    {"name": "missing", "forecast": [12, 12], "actuals": [], "expected_mae": null, "scoring_status": "pending", "lesson_allowed": false},
-    {"name": "revised", "forecast": [12, 12], "original_actuals": [13, 14], "actuals": [13, 20], "expected_mae": 4.5, "original_lesson_mae": 1.5},
-    {"name": "historical_cutoff_after_revision", "forecast": [12, 12], "actuals": [13, 14], "expected_mae": 1.5, "scoring_status": "complete"}
+    {
+      "name": "normal",
+      "forecast": [
+        12,
+        12
+      ],
+      "actuals": [
+        13,
+        14
+      ],
+      "expected_mae": 1.5,
+      "scoring_status": "complete"
+    },
+    {
+      "name": "missing",
+      "forecast": [
+        12,
+        12
+      ],
+      "actuals": [],
+      "expected_mae": null,
+      "scoring_status": "pending",
+      "lesson_allowed": false
+    },
+    {
+      "name": "revised",
+      "forecast": [
+        12,
+        12
+      ],
+      "original_actuals": [
+        13,
+        14
+      ],
+      "actuals": [
+        13,
+        20
+      ],
+      "expected_mae": 4.5,
+      "original_lesson_mae": 1.5
+    },
+    {
+      "name": "historical_cutoff_after_revision",
+      "forecast": [
+        12,
+        12
+      ],
+      "actuals": [
+        13,
+        14
+      ],
+      "expected_mae": 1.5,
+      "scoring_status": "complete"
+    }
   ],
   "failure_cases": [
-    {"name": "same_key_different_payload", "expected": "conflict_no_new_effect"},
-    {"name": "response_lost_after_commit", "expected": "resolve_existing_result"},
-    {"name": "provider_response_lost", "expected": "outcome_unknown_no_automatic_retry"},
-    {"name": "ditto_save_ack_lost", "expected": "uncertain_reconcile_before_retry"},
-    {"name": "recorded_at_supplied", "expected": "reject_caller_recording_timestamp"},
-    {"name": "deleted_project_pending_export", "expected": "export_disabled"},
-    {"name": "unresolvable_memory", "expected": "unverified_excluded_from_quantitative_evidence"}
-  ]
+    {
+      "name": "same_key_different_payload",
+      "expected": "conflict_no_new_effect"
+    },
+    {
+      "name": "response_lost_after_commit",
+      "expected": "resolve_existing_result"
+    },
+    {
+      "name": "provider_response_lost",
+      "expected": "outcome_unknown_no_automatic_retry"
+    },
+    {
+      "name": "ditto_save_ack_lost",
+      "expected": "uncertain_reconcile_before_retry"
+    },
+    {
+      "name": "recorded_at_supplied",
+      "expected": "reject_caller_recording_timestamp"
+    },
+    {
+      "name": "deleted_project_pending_export",
+      "expected": "export_disabled"
+    },
+    {
+      "name": "unresolvable_memory",
+      "expected": "unverified_excluded_from_quantitative_evidence"
+    }
+  ],
+  "implementation_tests": "services/hosted/tests"
 }

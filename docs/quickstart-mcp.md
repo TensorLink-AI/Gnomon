@@ -85,3 +85,10 @@ optional [Hermes integration](../integrations/hermes/gnomon-memory/README.md).
 Operator-configured routers appear under `gnomon_capabilities` → `ledger.routers` and
 are called through `gnomon_forecast` with the router's name as `provider`. See
 [adaptive routing](adaptive-routing.md).
+
+## Sharing evidence between processes
+
+For remote agents sharing project evidence across client and server restarts, use
+the separately installed [hosted MCP service](hosting/README.md). It provides
+authenticated Streamable HTTP and legacy SSE, with optional verified Ditto recall.
+The local stdio server above remains the lightweight single-process interface.

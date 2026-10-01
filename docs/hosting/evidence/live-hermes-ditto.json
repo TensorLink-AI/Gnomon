@@ -1,0 +1,14 @@
+{
+  "status": "ok",
+  "graph": "gnomon-integration-test-616836",
+  "service_id": "service-b7e9df5bf15d4c60bc8f44ef73405b0e",
+  "project_id": "project-5739c503297848dda4e952b9daa396e9",
+  "execution_id": "24fc55d0-e168-4074-9567-7cbf13fddfb7",
+  "lesson_id": "1e4012e2-4c8c-48e6-94e3-24a62d9b40bf",
+  "export_id": "export-ccec066d0b374647a289254826e06251",
+  "memory_id": "bef232c4-3ce1-4f00-87d1-c952d8ab2fca",
+  "verified_mae": 1,
+  "server_restarts": 2,
+  "narrative_verified": false,
+  "client": "Hermes MCP discovery/registry/transport; no LLM calls"
+}

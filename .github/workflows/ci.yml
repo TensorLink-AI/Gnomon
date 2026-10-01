@@ -97,6 +97,12 @@ jobs:
         run: python -m pip install -r integrations/hermes/compat-requirements.txt .
       - name: Verify actual plugin loading, injection and model-visible schemas
         run: python scripts/hermes_compat_probe.py --hermes-root .compat/hermes
+      - name: Install matching hosted service
+        run: python -m pip install . ./services/hosted
+      - name: Verify remote tools through fresh Hermes processes
+        env:
+          GNOMON_HERMES_ROOT: .compat/hermes
+        run: pytest -q services/hosted/tests/test_hermes.py
 
   package:
     name: Build and smoke-test package
@@ -154,3 +160,22 @@ jobs:
           name: python-distributions
           path: dist/
           if-no-files-found: error
+
+  hosted:
+    name: Shared MCP service and recovery (no external credentials)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install matching core and hosted packages
+        run: python -m pip install ".[dev]" ./services/hosted
+      - name: Check hosted implementation
+        run: ruff check services/hosted
+      - name: Check real network transports, isolation, retries and recovery
+        run: pytest -q tests/test_ledger_transactions.py services/hosted/tests
+      - name: Build optional hosted image
+        run: docker build -f services/hosted/deployment/Dockerfile -t gnomon-hosted:ci .
+      - name: Check packaged image and persistent restart
+        run: python services/hosted/scripts/container_smoke.py --image gnomon-hosted:ci

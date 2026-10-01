@@ -1,0 +1,37 @@
+services:
+  gnomon:
+    image: gnomon-hosted:0.1.0
+    build:
+      context: ../../..
+      dockerfile: services/hosted/deployment/Dockerfile
+    command: ["serve", "--host", "0.0.0.0", "--allowed-host", "${GNOMON_HOSTNAME:-localhost}"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8765:8765"
+    volumes:
+      - evidence:/data
+    env_file:
+      - path: .env
+        required: false
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    stop_grace_period: 320s
+  tls:
+    image: caddy:2.10-alpine
+    profiles: [tls]
+    restart: unless-stopped
+    ports: ["443:443", "80:80"]
+    environment:
+      GNOMON_HOSTNAME: ${GNOMON_HOSTNAME:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - certificates:/data
+      - caddy-config:/config
+    depends_on: [gnomon]
+volumes:
+  evidence:
+  certificates:
+  caddy-config:

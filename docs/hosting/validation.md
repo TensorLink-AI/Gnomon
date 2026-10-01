@@ -1,87 +1,99 @@
-# Milestone A validation evidence
+# Hosted service validation
 
-Result: the existing SQLite ledger passes the bounded offline feasibility probe. This
-supports proceeding to a single-server demonstrator. It does not qualify a hosted beta.
+Recorded 2026-10-01 on the `ditto` branch, Python 3.13.11 and MCP SDK 1.30.0.
+These are synthetic integration and failure tests, not evidence of better forecasts
+or autonomous trading performance. Historical [milestone A storage results](milestone-a-validation.md)
+remain available separately.
 
-Base code: `82d9766a621cb3a568ea0c86b3890d5d6c76c74c` (remote main at branch creation).
-The exact probe SHA-256 and environment are included in the retained JSON reports.
-Recorded 2026-09-30. No accounts, external services or real user data were accessed.
+## Live Hermes → Gnomon → Ditto → Hermes
 
-## Reproduce
+The opt-in [live probe](../../services/hosted/scripts/live_smoke.py) completed with
+actual Ditto save/search/fetch calls using a key for a dedicated test workspace.
+It used the pinned Hermes checkout's discovery, schema sanitation, registry dispatch
+and MCP transport in fresh OS processes. There were no LLM calls.
 
-From the repository root, using Python with Gnomon and the development test dependencies:
+1. Hermes A recorded a forecast of 12 widgets and a decision before the target time.
+2. That client exited and the Gnomon server stopped.
+3. A separately authorized outcomes client supplied a synthetic actual of 13.
+4. Gnomon saved a review (MAE 1) and an explicitly labelled synthetic lesson.
+5. A durable export was acknowledged by the real Ditto endpoint.
+6. Gnomon stopped and restarted again.
+7. A fresh Hermes B process recalled through a new Ditto session. The connector
+   fetched full memory contents and checked the payload digest, project reference,
+   cutoff eligibility and core ledger review. It returned MAE 1 and
+   `narrative_verified=false`.
+
+The sanitized [live report](evidence/live-hermes-ditto.json) records the resource
+IDs; IDs confer no access. The test's private service directory and credentials
+are not committed. Reproduce with a **dedicated test workspace**, never a production
+memory graph:
 
 ```bash
-PYTHONPATH=src python -m benchmarks.hosted_ledger.validate /tmp/new-ledger-delete --workers 4 --writes 100 --journal-mode DELETE
-PYTHONPATH=src python -m benchmarks.hosted_ledger.validate /tmp/new-ledger-wal --workers 4 --writes 100 --journal-mode WAL
-python -m pytest -q benchmarks/tests/test_hosted_contract_fixtures.py benchmarks/tests/test_hosted_ledger_validation.py tests/test_ledger.py tests/test_decision_memory.py tests/test_memory_bridge.py
+python services/hosted/scripts/live_smoke.py \
+  --root /path/to/private-new-test-state --env-file /path/to/private.env \
+  --graph YOUR_TEST_WORKSPACE_ALIAS --hermes-root /path/to/pinned-hermes \
+  --hermes-python /path/to/hermes-python
 ```
 
-Each output directory must be new. It contains a synthetic ledger, an online backup,
-identity/checksum manifest and JSON report. The committed reports contain no database
-contents or credentials. The schema-fixture test requires `jsonschema`, already part
-of the project's development extra.
+The environment file needs only `DITTO_API_KEY`. The probe parses that one value
+without executing the file. It creates a private local replay state with generated
+Gnomon test tokens; protect and remove that directory when no longer needed. Reruns
+reuse local idempotency keys. Omitting `--hermes-root` tests the MCP SDK client only.
+The probe performs remote writes and is opt-in, not part of credential-free CI.
 
-## Observed results
+## Automated local coverage
 
-Environment: Python 3.13.11, SQLite 3.50.4, Linux/WSL2. Runs used the same host alongside
-other validation work; they are correctness probes, not a controlled performance
-comparison. Timings include filesystem and process scheduling effects.
+`tests/test_ledger_transactions.py` and `services/hosted/tests` cover:
 
-| Measurement | DELETE | WAL |
-| --- | ---: | ---: |
-| Writer processes | 4 | 4 |
-| Distinct contended revisions | 400 | 400 |
-| Exact retries | 400 | 400 |
-| Missing/duplicate revision numbers | 0 | 0 |
-| Elapsed write phase, including process startup | 2.507 s | 1.916 s |
-| Median write plus exact retry | 5.61 ms | 3.96 ms |
-| p95 write plus exact retry | 8.56 ms | 12.01 ms |
-| Maximum write plus exact retry | 1,337.59 ms | 968.69 ms |
-| Backup plus fresh-process verification | 0.128 s | 0.138 s |
-| Restored database size | 249,856 bytes | 249,856 bytes |
+- Atomic extension/core transactions, rollback and caught nested failure.
+- Real Streamable HTTP and legacy SSE; SSE session ownership, revocation,
+  cross-project denial, host/origin rejection and request size limits.
+- Shared forecast/decision/actual/review/lesson reads across server restarts.
+- Historical review immutability after actual revisions, and a clean-directory
+  backup/restore with references preserved and old credentials revoked.
+- Exact duplicate requests and conflicting keys; a failed receipt write rolling
+  back the associated observation; restart recovery of unfinished requests.
+- A real provider subprocess timeout and cleanup; durable unknown outcomes which
+  never trigger automatic provider retries.
+- Ditto delivery/recall against an explicitly labelled **local MCP contract peer**,
+  including corrupted remote contents, lost save acknowledgements, explicit
+  reconciliation, wrong-graph keys, and cancelled exports after project retirement.
+- Actual pinned Hermes discovery and calls from separate processes when
+  `GNOMON_HERMES_ROOT` is supplied. CI provides this checkout in its Hermes job.
 
-Raw reports: [DELETE](evidence/delete.json), [WAL](evidence/wal.json).
+The local peer tests are fault-injection coverage; they do not replace the live
+Ditto result above. The core production regression suite is also run because the
+new public transaction boundary touches existing ledger readers and writers.
 
-The maximum latency demonstrates contention even in this tiny workload. These values
-must not be converted into a user-count estimate or an SLA. The current core default
-journal mode has not changed.
+## Container and concurrency
 
-## Correctness established by the probe
+The Docker image built from the source wheels and passed a read-only-root,
+unprivileged-user probe: initialize a named volume, forecast via real MCP, restart
+the container, and resolve the same execution. Compose configuration validates.
+Reproduce with:
 
-- A forecast and decision survive process exit; another process supplies outcomes.
-- Before actuals, the review is pending and a premature lesson is rejected.
-- The baseline prediction `[12, 12]` scores MAE 1.5 against `[13, 14]`.
-- Concurrent writers revising one series/time/unit receive a complete unique revision
-  sequence. Identical actual retries reuse IDs rather than adding revisions.
-- Existing append-only triggers reject UPDATE and DELETE of actuals.
-- A separate WAL barrier test pauses a review, commits `[13, 20]` through another
-  connection, then repeats the actual query inside the open review transaction. Both
-  reads see `[13, 14]`; the packet does not mix revisions. This test uses WAL regardless
-  of the earlier write-throughput mode, as labelled in each report.
-- Online SQLite backup passes integrity and foreign-key checks. A new process opens
-  the restored file: old cutoffs still score 1.5, newer cutoffs score 4.5, and the entire
-  original exported lesson remains byte-for-byte equivalent as a decoded JSON object.
+```bash
+docker build -f services/hosted/deployment/Dockerfile -t gnomon-hosted:test .
+python services/hosted/scripts/container_smoke.py --image gnomon-hosted:test
+python services/hosted/scripts/load_probe.py
+```
 
-Targeted regression result: **47 passed** (new probe/schema tests plus ledger,
-decision-memory and memory-bridge tests). Ruff and whitespace checks also pass.
+Four independent local client processes completed **40 unique contended observation
+writes and 40 exact retries**, with 40 records/receipts, complete distinct revision
+numbers, and zero errors. This run took 3.010s including server/process startup;
+median request latency was 69.4ms, p95 111.0ms and maximum 147.1ms. Every request
+created a fresh MCP connection. These figures characterize this small local probe;
+they are neither production capacity nor a user-count/SLA estimate.
+The [machine-readable result](evidence/hosted-load.json) is retained.
 
-## Not established
+## Limits of this evidence
 
-- No hosted server restart, real MCP connection or authorization boundary has been
-  tested. Process reopening tests the core persistence component only.
-- Unauthorized-access cases are design fixtures, not passing security tests. The
-  schema test rejects invalid identity examples; it is not an access-control test.
-- There are no saved standalone hosted reviews, persistent uploaded dataset references,
-  request receipts, durable jobs or production export queue yet.
-- No process was killed during a commit or external operation. Provider timeout and
-  response-loss reconciliation remain milestone B/C requirements.
-- Backup tests cover this synthetic database only, not external artifacts, credentials,
-  power loss, full disks or an upgrade across schema versions.
-- No real Ditto save/search/fetch occurred, and no forecasting benefit is claimed.
-
-## Next gate
-
-Implement milestone B's principal/project boundary, transactional operation markers
-and durable reference resolution. Exercise real client/server restarts and failure
-injection, then qualify a representative workload before making deployment guarantees.
+- Hermes transport/registry compatibility is tested; no autonomous LLM learning or
+  forecast-quality gain is established. Ditto narratives remain hypotheses.
+- The live test used Ditto's MCP service; it did not exercise the Ditto web app's
+  UI for adding Gnomon as a remote tool server.
+- TLS configuration is supplied, but public DNS/certificate issuance was not tested.
+- Tests cover restart and exception paths, not power loss, disk exhaustion or a
+  production-scale database. There is only one supported service schema/backend.
+- Source truth, model revision authenticity, managed provisioning, automatic
+  adaptation, active-active hosting and contractual recovery targets are not claimed.

@@ -90,7 +90,7 @@ def record_decision_summary(ledger, *, execution_id, rationale, assumptions,
     for label in context:
         label['recorded_at'] = now
     with ledger._connect() as conn:
-        conn.execute('BEGIN IMMEDIATE')
+        ledger._begin(conn, immediate=True)
         execution = ledger._execution(conn, execution_id)
         if execution['recorded_at'] > now:
             _fail('execution_id', 'Execution was not recorded by the decision recording time')
@@ -187,7 +187,7 @@ def review_decision(ledger, *, decision_id, source_as_of, recorded_as_of):
     """Read a cutoff-bound review packet. Complete coverage invites review, not belief."""
     source, recorded = _time(source_as_of), _time(recorded_as_of)
     with ledger._connect() as conn:
-        conn.execute('BEGIN')
+        ledger._begin(conn)
         return _review(ledger, conn, decision_id, source, recorded)
 
 
@@ -200,7 +200,7 @@ def record_lesson(ledger, *, decision_id, lesson, source_as_of, recorded_as_of, 
     if max(source, recorded) > now:
         _fail('source_as_of/recorded_as_of', 'Saved lessons require evidence cutoffs no later than the recording clock')
     with ledger._connect() as conn:
-        conn.execute('BEGIN IMMEDIATE')
+        ledger._begin(conn, immediate=True)
         review = _review(ledger, conn, decision_id, source, recorded)
         if not review['review_ready']:
             raise ForecastAdapterError('Lesson requires complete matching-unit actuals; use review_decision to inspect missing evidence',
@@ -229,7 +229,7 @@ def export_lesson(ledger, *, lesson_id, recorded_as_of):
     _text(lesson_id, 'lesson_id', 128)
     recorded = _time(recorded_as_of)
     with ledger._connect() as conn:
-        conn.execute('BEGIN')
+        ledger._begin(conn)
         row = conn.execute('SELECT payload_json, recorded_at FROM decision_outcomes WHERE outcome_id=?', (lesson_id,)).fetchone()
         if row is None or row[1] > recorded:
             _fail('lesson_id', 'Lesson does not exist at recorded_as_of')

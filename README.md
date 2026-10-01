@@ -181,3 +181,5 @@ of calibrated uncertainty. See [validation and limits](docs/agent-evaluation.md)
 - [Changelog](CHANGELOG.md)
 
 *A gnomon is the part of a sundial that casts the shadow.*
+
+Shared agents: [self-hosted remote MCP and optional Ditto memory](docs/hosting/README.md), with project-scoped credentials, durable evidence and restart-tested handoffs.
