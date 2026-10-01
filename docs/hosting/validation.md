@@ -81,6 +81,27 @@ Agent B verified recorded evidence and arithmetic, not the source's real-world
 truth or the narrative's causality. Private credentials and raw local test state
 are excluded from the committed report.
 
+## Local computation with live Ditto
+
+The [local-mode live report](evidence/live-local-computation.json) records a second
+kind of handoff: a separate process ran local Gnomon inference, Hermes submitted
+its result, the server froze evidence, and another local process scored it. A
+client analysis was exported to actual Ditto. After two server restarts, a fresh
+Hermes MCP process recalled the lesson and a local process independently computed
+MAE 1 from the returned evidence. The server retained
+`server_numerically_verified: false`. This fixture is synthetic; there were no LLM
+calls or claims of forecasting advantage. Reproduce the opt-in live probe above
+with `--local-computation` and a **new private root**.
+
+Credential-free tests also exercise client analysis export/recall against the
+local Ditto contract peer, including deliberately incorrect claimed metrics,
+revised actuals, immutable snapshots, cross-project denial, transactional rollback,
+and atomic analysis/outbox enqueue. They verify the server does not upgrade a
+client's arithmetic claim into server verification. Local CLI tests run real
+inference and scoring in separate processes and replay exact saved submissions.
+The pinned Hermes test exercises the new submission schema through real discovery
+and dispatch, in addition to the original server-run forecast route.
+
 ## Automated local coverage
 
 `tests/test_ledger_transactions.py` and `services/hosted/tests` cover:

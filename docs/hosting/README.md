@@ -74,6 +74,14 @@ allowlist and explicit cutoffs. Mutations require a durable `idempotency_key`.
 `gnomon_hosted` adds durable datasets, saved reviews, reference resolution,
 request receipts, and explicit Ditto delivery/recall. See [tool examples](tools.md).
 
+## Run computation beside Hermes
+
+Use [local computation with shared evidence](local-computation.md) for local models,
+local Gnomon/Ephemeris, or direct Ephemeris calls. The service accepts validated
+forecast submissions, freezes evidence snapshots, and stores explicitly unverified
+client analyses. The optional `gnomon-shared` CLI supports local forecasting and
+scoring; the same operations are exposed through MCP.
+
 ## Optional Ditto connection
 
 Create a dedicated Ditto workspace and claim its workspace-scoped API key. The

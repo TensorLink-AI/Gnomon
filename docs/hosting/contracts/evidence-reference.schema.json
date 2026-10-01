@@ -34,7 +34,9 @@
         "actual",
         "review",
         "lesson",
-        "export_receipt"
+        "export_receipt",
+        "evidence_snapshot",
+        "client_analysis"
       ]
     },
     "resource_id": {

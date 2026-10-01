@@ -744,6 +744,29 @@ class TemporalLedger:
             context_candidates=context_candidates, min_origins=min_origins, unit=unit,
             metric=metric, recent_origins=recent_origins, negative_predictions=negative_predictions)
 
+    def evidence_snapshot(self, *, decision_id, source_as_of, recorded_as_of):
+        """Read decision, forecast and eligible actuals atomically, without scoring.
+
+        Returns the latest eligible revision for each forecast target at explicit
+        source/recording cutoffs. Recording times remain server-owned evidence.
+        """
+        source, recorded = _time(source_as_of), _time(recorded_as_of)
+        with self.transaction() as conn:
+            decision = self.decision(decision_id, source_as_of=source, recorded_as_of=recorded)
+            execution = self.execution(decision['inputs']['execution_id'])
+            if execution['recorded_at'] > recorded:
+                raise ForecastAdapterError('Execution was not recorded by this cutoff')
+            request = execution['request']
+            times = request['future_timestamps']
+            if not times:
+                raise ForecastAdapterError('Snapshot requires explicit forecast targets')
+            targets = {_time(t) for t in times}
+            actuals = self._actuals(conn, request['series_id'], source, recorded,
+                                   request.get('unit'), sorted(targets))
+            return {'kind': 'evidence_snapshot/1', 'decision': decision, 'execution': execution,
+                    'actuals': [a for a in actuals if a['valid_time'] in targets],
+                    'source_as_of': source, 'recorded_as_of': recorded}
+
     def review_decision(self, *, decision_id, source_as_of, recorded_as_of):
         """Read a review packet; review_ready means complete actuals, not a proven explanation."""
         from .decision_memory import review_decision

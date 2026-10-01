@@ -153,3 +153,16 @@ Project deletion first disables credentials and pending exports. Core append-onl
 protect record history during normal operation; whole-project retention/deletion needs
 an explicit administrator workflow covering artifacts, backups and external memories.
 Ditto deletion may be pending or unavailable and must be reported, not claimed complete.
+
+## Client computations and frozen evidence
+
+Client-submitted forecasts use the existing execution ledger, with server-owned
+recording time and an explicit `client_submitted` origin. Provider execution and
+claimed earlier computation times are unverified. `evidence_snapshot` references
+identify immutable, transactionally captured decisions, executions and eligible
+actual revisions at explicit cutoffs. `client_analysis` references identify immutable
+client metrics, method/version and narrative bound to one such snapshot. These are
+not server reviews. Their Ditto exports preserve the unverified classification;
+recall checks content and references and reports revised evidence without scoring.
+See [the complete contract and examples](local-computation.md). No storage migration
+is needed: the new resources use the existing append-only hosted records table.

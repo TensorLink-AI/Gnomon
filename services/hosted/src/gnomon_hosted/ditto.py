@@ -177,6 +177,22 @@ async def recall(runtime, identity, args):
             if hashlib.sha256(encode(remote).encode()).hexdigest() != row['digest']:
                 raise ValueError('changed remote content')
             stage = 'ledger_reference'
+            if remote.get('kind') == 'gnomon-client-analysis':
+                saved = runtime.fetch_record(identity, 'client_analysis', row['lesson_id'])
+                if saved != remote['lesson'] or remote['reference'] != runtime.reference(identity.project, 'client_analysis', row['lesson_id']):
+                    raise ValueError('reference mismatch')
+                stage = 'evidence_cutoffs'
+                if instant(saved['source_as_of']) > source or instant(saved['recorded_as_of']) > recorded:
+                    raise ValueError('future evidence')
+                snapshot = runtime.fetch_record(identity, 'evidence_snapshot', saved['snapshot_id'])
+                current = ledger.evidence_snapshot(decision_id=snapshot['decision']['decision_id'],
+                    source_as_of=args['source_as_of'], recorded_as_of=args['recorded_as_of'])
+                lessons.append({'memory_id': memory['id'], 'reference': remote['reference'], 'lesson': saved,
+                    'snapshot_reference': saved['snapshot_reference'], 'current_evidence': current,
+                    'numerically_verified': False, 'narrative_verified': False,
+                    'verification': 'Stored content and evidence references checked; recompute metrics locally.',
+                    'evidence_changed': [a['actual_id'] for a in snapshot['actuals']] != [a['actual_id'] for a in current['actuals']]})
+                continue
             saved = ledger.export_lesson(lesson_id=row['lesson_id'], recorded_as_of=args['recorded_as_of'])
             if saved != remote['lesson'] or remote['reference'] != runtime.reference(identity.project, 'lesson', row['lesson_id']):
                 raise ValueError('reference mismatch')
@@ -187,6 +203,7 @@ async def recall(runtime, identity, args):
             current = ledger.review_decision(decision_id=saved['decision_id'], source_as_of=args['source_as_of'], recorded_as_of=args['recorded_as_of'])
             lessons.append({'memory_id': memory['id'], 'reference': remote['reference'], 'lesson': saved,
                             'current_review': current, 'narrative_verified': False,
+                            'forecast_provenance': ledger.execution(saved['execution_id']).get('provider_identity'),
                             'evidence_changed': saved['actual_ids'] != current['actual_ids']})
         except Exception:
             excluded.append({'memory_id': memory['id'], 'reason': 'unverified_or_cutoff_ineligible', 'verification_stage': stage})

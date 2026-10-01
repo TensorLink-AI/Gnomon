@@ -29,6 +29,7 @@ def main():
     parser.add_argument('--env-file', type=Path, required=True)
     parser.add_argument('--graph', required=True)
     parser.add_argument('--hermes-root', type=Path)
+    parser.add_argument('--local-computation', action='store_true', help='Forecast and score in local processes; server only stores evidence.')
     parser.add_argument('--hermes-python', default=sys.executable)
     args = parser.parse_args()
     os.umask(0o077)
@@ -48,7 +49,7 @@ def main():
     else:
         store = Store.initialize(args.root)
         project = store.create_project('live-synthetic-handoff')['project_id']
-        state = {'project': project}
+        state = {'project': project, 'local_computation': args.local_computation}
         scopes = {
             'hermes-a': ['forecast.create', 'decision.create', 'evidence.read'],
             'outcomes': ['actual.create'],
@@ -57,6 +58,8 @@ def main():
         }
         state['tokens'] = {name: store.issue_token(project, name, permissions)['token'] for name, permissions in scopes.items()}
         path.write_text(json.dumps(state))
+    if state.get('local_computation', False) != args.local_computation:
+        raise RuntimeError('Use a separate root for each computation mode')
     store.configure_ditto(state['project'], 'https://api.heyditto.ai/mcp', 'DITTO_API_KEY', args.graph)
     def save():
         path.write_text(json.dumps(state))
@@ -77,7 +80,18 @@ def main():
                 'timestamps': [(at - timedelta(days=i)).isoformat() for i in (3, 2, 1)],
                 'future_timestamps': [(at + timedelta(seconds=5)).isoformat()]}
             save()
-        run = invoke(url, 'hermes-a', 'gnomon_forecast', {'provider': 'last_value', 'request': state['request'], 'idempotency_key': 'forecast'})
+        if args.local_computation:
+            if 'local_submission' not in state:
+                output = subprocess.check_output([sys.executable, '-c',
+                    'import json,sys; from dataclasses import asdict; from gnomon import GnomonSession; '
+                    's=GnomonSession.from_config(); e=s.engine.forecast("last_value", json.load(sys.stdin)); '
+                    'print(json.dumps({"provider":e.provider,"revision":e.revision,"request":asdict(e.request),"result":asdict(e.result)}))'],
+                    input=json.dumps(state['request']).encode(), timeout=30)
+                state['local_submission'] = {'action': 'forecast.submit', **json.loads(output), 'idempotency_key': 'forecast'}
+                save()
+            run = invoke(url, 'hermes-a', 'gnomon_hosted', state['local_submission'])
+        else:
+            run = invoke(url, 'hermes-a', 'gnomon_forecast', {'provider': 'last_value', 'request': state['request'], 'idempotency_key': 'forecast'})
         decision = invoke(url, 'hermes-a', 'gnomon_ledger', {'operation': 'record_decision_summary',
             'execution_id': run['result']['execution_id'], 'rationale': 'Synthetic acceptance fixture: last value persists.',
             'assumptions': ['Synthetic data only'], 'invalidation_conditions': ['Observed value differs'], 'context': [],
@@ -99,15 +113,30 @@ def main():
         if 'cutoffs' not in state:
             state['cutoffs'] = {'source_as_of': now(), 'recorded_as_of': now()}
             save()
-        review = invoke(url, 'reviewer', 'gnomon_hosted', {'action': 'review.save', 'decision_id': state['decision'], **state['cutoffs'], 'idempotency_key': 'review'})
-        assert review['result']['review']['metrics']['mae'] == 1
-        lesson = invoke(url, 'reviewer', 'gnomon_ledger', {'operation': 'record_lesson', 'decision_id': state['decision'], **state['cutoffs'],
-            'lesson': 'Synthetic Gnomon acceptance test: forecast 12 widgets, actual 13 widgets, MAE 1. Cause is unverified.', 'idempotency_key': 'lesson'})
-        state['lesson'] = lesson['result']['result']['lesson_id']
+        if args.local_computation:
+            snapshot = invoke(url, 'reviewer', 'gnomon_hosted', {'action': 'snapshot.save', 'decision_id': state['decision'],
+                **state['cutoffs'], 'idempotency_key': 'snapshot'})['result']
+            def score(packet):
+                return json.loads(subprocess.check_output([sys.executable, '-c',
+                    'import json,sys; from gnomon.evidence import score_snapshot; print(json.dumps(score_snapshot(json.load(sys.stdin))))'],
+                    input=json.dumps(packet).encode(), timeout=30))
+            local = score(snapshot['snapshot'])
+            assert local['metrics']['mae'] == 1
+            lesson = invoke(url, 'reviewer', 'gnomon_hosted', {'action': 'analysis.submit',
+                'snapshot_id': snapshot['snapshot_id'], 'method': local['method'], 'method_version': local['method_version'],
+                'metrics': local['metrics'], 'lesson': 'Synthetic Gnomon local computation test: forecast 12 widgets, actual 13, locally computed MAE 1; not server verified.',
+                'idempotency_key': 'lesson'})
+            state['lesson'] = lesson['result']['analysis_id']
+        else:
+            review = invoke(url, 'reviewer', 'gnomon_hosted', {'action': 'review.save', 'decision_id': state['decision'], **state['cutoffs'], 'idempotency_key': 'review'})
+            assert review['result']['review']['metrics']['mae'] == 1
+            lesson = invoke(url, 'reviewer', 'gnomon_ledger', {'operation': 'record_lesson', 'decision_id': state['decision'], **state['cutoffs'],
+                'lesson': 'Synthetic Gnomon acceptance test: forecast 12 widgets, actual 13 widgets, MAE 1. Cause is unverified.', 'idempotency_key': 'lesson'})
+            state['lesson'] = lesson['result']['result']['lesson_id']
         if 'export_cutoff' not in state:
             state['export_cutoff'] = now()
             save()
-        export = invoke(url, 'reviewer', 'gnomon_hosted', {'action': 'export.enqueue', 'lesson_id': state['lesson'],
+        export = invoke(url, 'reviewer', 'gnomon_hosted', {'action': 'export.enqueue', ('analysis_id' if args.local_computation else 'lesson_id'): state['lesson'],
             'recorded_as_of': state['export_cutoff'], 'idempotency_key': 'export'})
         state['export'] = export['result']['export_id']
         save()
@@ -127,10 +156,15 @@ def main():
                 break
             time.sleep(2)  # bounded read-only retry for asynchronous Ditto indexing
         assert recalled['returned'] == 1, recalled
-        assert recalled['lessons'][0]['current_review']['metrics']['mae'] == 1
+        if args.local_computation:
+            assert recalled['lessons'][0]['numerically_verified'] is False
+            assert score(recalled['lessons'][0]['current_evidence'])['metrics']['mae'] == 1
+        else:
+            assert recalled['lessons'][0]['current_review']['metrics']['mae'] == 1
         report = {'status': 'ok', 'graph': args.graph, 'service_id': store.service_id, 'project_id': state['project'],
             'execution_id': state['execution'], 'lesson_id': state['lesson'], 'export_id': state['export'], 'memory_id': state['memory'],
-            'verified_mae': 1, 'server_restarts': 2, 'narrative_verified': False,
+            'verified_mae': 1, 'verification_location': 'independent local process' if args.local_computation else 'server',
+            'server_numerically_verified': not args.local_computation, 'server_restarts': 2, 'narrative_verified': False,
             'client': 'Hermes MCP discovery/registry/transport; no LLM calls' if args.hermes_root else 'MCP Python SDK'}
         (args.root / 'report.json').write_text(json.dumps(report, indent=2))
         print(json.dumps(report), flush=True)

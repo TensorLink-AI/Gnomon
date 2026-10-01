@@ -119,3 +119,10 @@ All lookups recheck project authorization. Possessing a reference is not access.
 Tool schemas expose parameter names portably; the runtime validates the exact
 operation-specific contract. Unsupported local tools and filesystem paths are
 rejected. A 409/conflict is not a success response.
+
+## Local computation
+
+See [local computation](local-computation.md) for `forecast.submit`, `snapshot.save`,
+`analysis.submit`, the `gnomon-shared` CLI, and exporting a client analysis using
+`export.enqueue` with `analysis_id`. Client analyses remain numerically unverified,
+including on Ditto recall; original snapshots and revised evidence are separate.

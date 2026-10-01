@@ -38,3 +38,12 @@ def test_fresh_hermes_processes_share_evidence(tmp_path):
     with serving(store.root) as url:
         resolved = invoke(url, b, 'gnomon_hosted', {'action': 'resolve', 'reference': result['result']['reference']})
         assert resolved['result']['execution_id'] == result['result']['execution_id']
+
+    with serving(store.root) as url:
+        submitted = invoke(url, a, 'gnomon_hosted', {'action': 'forecast.submit',
+            'provider': 'local-example', 'revision': 'v1', 'request': request,
+            'result': {'point': [2]}, 'idempotency_key': 'local-one'})
+    with serving(store.root) as url:
+        local = invoke(url, b, 'gnomon_hosted', {'action': 'resolve', 'reference': submitted['result']['reference']})
+        assert local['result']['evidence'] == 'client_submitted'
+        assert local['result']['provider_identity']['execution_verified'] is False
