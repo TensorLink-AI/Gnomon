@@ -30,17 +30,20 @@ No production release has been published.
    limited to that hostname was rejected by automatic approval review. Explicit
    user approval is pending. No zone-wide security settings were changed.
 2. The private `gnomon-staging-backups` R2 bucket exists with public access disabled.
-   Scoped Object Read & Write credentials are still required. The management
-   connector cannot create API tokens. No R2 upload has been claimed or scheduled.
-   After credentials are installed, run upload/readback and restore from the R2
-   object, then enable the daily timer. The SSH restore is not an R2 restore test.
+   Supplied credentials successfully listed the bucket, but the real encrypted
+   backup upload failed with `AccessDenied` on `PutObject`. Credentials need
+   Object Read & Write permission for this bucket. The application restarted
+   successfully and remains healthy; no success receipt was written and the timer
+   remains disabled. After correcting permissions, run upload/readback and restore
+   from the R2 object, then enable the timer. The SSH restore is not an R2 restore test.
 
 ## Operator locations
 
 On the VM: `/srv/gnomon/deployment.json`, `/srv/gnomon/clients.json`,
 `/srv/gnomon/server.env`, `/srv/gnomon/r2_backup.py`; units are
 `gnomon-staging.service`, `gnomon-backup.service` and `gnomon-backup.timer`.
-The backup timer is installed but disabled pending credentials and a successful run.
+The backup timer is installed but disabled pending write access and a successful
+upload/readback and restore test.
 
 Off the VM, private recovery material and separate Hermes environment files are
 stored in `/root/Gnomon/results/gnomon-staging-private/` (git-ignored, mode 0700).

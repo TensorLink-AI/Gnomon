@@ -17,9 +17,12 @@
   "r2": {
     "bucket": "gnomon-staging-backups",
     "public_access": false,
-    "upload_tested": false,
+    "upload_tested": true,
     "scheduled_backup_enabled": false,
-    "blocker": "Bucket-scoped S3 credentials required; management connector cannot create API tokens"
+    "blocker": "Supplied credentials permit ListObjectsV2 but PutObject returned AccessDenied; Object Read & Write permission required",
+    "upload_succeeded": false,
+    "list_access_verified": true,
+    "service_healthy_after_failure": true
   },
   "acceptance": {
     "transport": "MCP over encrypted SSH; remote Hermes uses VM loopback",
