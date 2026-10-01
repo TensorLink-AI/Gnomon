@@ -12,6 +12,12 @@ Gnomon scores them, exports a lesson, restarts, and agent B retrieves and checks
 that lesson through a new Ditto connection. This is a deterministic integration
 probe, not an LLM strategy-quality benchmark. See [validation](validation.md).
 
+## Docker deployment
+
+For a persistent self-hosted MCP endpoint, follow the [Docker quickstart](docker.md).
+It includes building the image, creating agent credentials, connecting Hermes and
+enabling HTTPS. Ditto is optional.
+
 ## Start a local service
 
 From this branch's checkout (the unreleased core transaction API is required):
