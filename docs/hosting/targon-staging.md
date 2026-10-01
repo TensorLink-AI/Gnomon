@@ -12,8 +12,9 @@ No production release has been published.
   Gnomon token authentication, separate agent principals and project isolation.
 - Cloudflare Tunnel connected from the VM; application port bound to loopback.
 - Separate pinned Hermes installations on the client machine and VM exchanged
-  shared evidence using actual MCP discovery/dispatch. The current network path
-  was encrypted SSH plus VM loopback, not the public HTTPS endpoint.
+  shared evidence using actual MCP discovery/dispatch over public HTTPS. The
+  original SSH test also passed. Unauthenticated public MCP requests return 401
+  and another project cannot resolve the shared execution.
 - Local forecast → shared execution/decision → authorized actual → immutable
   snapshot → local analysis → actual Ditto export → fresh remote Hermes recall.
   A synthetic forecast of 12 and actual of 13 produced locally recomputed MAE 1.
@@ -23,37 +24,37 @@ No production release has been published.
   using an off-VM key and restored into an isolated new service directory. Original
   execution, snapshot and analysis references resolved; old tokens were rejected.
 
-## Pending before public staging sign-off
+## Public access and R2 validation
 
-1. `https://gnomon-staging.cascade.industries/mcp` currently receives Cloudflare
-   Browser Integrity Check error 1010 before reaching Gnomon. A configuration rule
-   limited to that hostname was rejected by automatic approval review. Explicit
-   user approval is pending. No zone-wide security settings were changed.
-2. The private `gnomon-staging-backups` R2 bucket exists with public access disabled.
-   Supplied credentials successfully listed the bucket, but the real encrypted
-   backup upload failed with `AccessDenied` on `PutObject`. Credentials need
-   Object Read & Write permission for this bucket. The application restarted
-   successfully and remains healthy; no success receipt was written and the timer
-   remains disabled. After correcting permissions, run upload/readback and restore
-   from the R2 object, then enable the timer. The SSH restore is not an R2 restore test.
+Retested 2026-10-01: `https://gnomon-staging.cascade.industries/mcp` works with
+both independent pinned Hermes clients. Readiness returns 200; unauthenticated MCP
+returns 401. The earlier Cloudflare 1010 blocker no longer occurs. This retry made
+no Cloudflare security configuration changes and does not establish which external
+configuration change resolved it.
+
+The encrypted backup uploaded to private `gnomon-staging-backups` and passed a
+SHA-256 check after download. A separate machine downloaded the R2 object,
+decrypted it using the off-VM key, restored the evidence into an isolated service,
+resolved the execution/snapshot/analysis, recomputed MAE 1 and rejected old tokens.
+The daily timer is now enabled for 03:00 UTC with up to five minutes of jitter.
+The earlier failed upload recorded no successful backup; the successful receipt is
+included in the deployment report.
 
 ## Operator locations
 
 On the VM: `/srv/gnomon/deployment.json`, `/srv/gnomon/clients.json`,
 `/srv/gnomon/server.env`, `/srv/gnomon/r2_backup.py`; units are
 `gnomon-staging.service`, `gnomon-backup.service` and `gnomon-backup.timer`.
-The backup timer is installed but disabled pending write access and a successful
-upload/readback and restore test.
+The backup timer is enabled after a successful upload/readback and separate-machine
+restore test. The service remains healthy after the backup.
 
 Off the VM, private recovery material and separate Hermes environment files are
 stored in `/root/Gnomon/results/gnomon-staging-private/` (git-ignored, mode 0700).
 The age private key is `backup.agekey`; keep an additional copy in your own secure
 secret store. Credential values are excluded from repository documentation.
-The private directory also contains an SSH profile for accessing staging while the
-public hostname is blocked. External provider and Ditto keys require separate
+The private directory also contains an SSH profile for operator access. External provider and Ditto keys require separate
 recovery; they are not in evidence backups.
 
 For backups and recovery procedures, see [encrypted R2 backups](r2-backups.md).
-Before calling this release-ready, complete the two pending items and run sustained
-use checks. This proves a synthetic evidence handoff, not forecast quality or
+Before calling this release-ready, run sustained use checks. This proves a synthetic evidence handoff, not forecast quality or
 fully autonomous Hermes learning.

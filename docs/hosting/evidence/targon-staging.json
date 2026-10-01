@@ -1,6 +1,6 @@
 {
   "recorded_date": "2026-10-01",
-  "status": "staging_running_with_two_pending_setup_items",
+  "status": "staging_public_mcp_and_r2_restore_verified",
   "commit": "68c0f2c9912403f27c43be570b71a19ed59323a2",
   "image_id": "sha256:810960980af1ca61e1af5187a0298bde7922e2a5532d0dbdb4f54b4d3b280742",
   "targon": {
@@ -12,20 +12,31 @@
     "ssh_port": 20000
   },
   "endpoint": "https://gnomon-staging.cascade.industries/mcp",
-  "public_endpoint_status": "Cloudflare Browser Integrity Check returns 403/1010; exception rejected by automatic approval review and awaits explicit user approval",
+  "public_endpoint_status": "Readiness 200, unauthenticated MCP 401, two independent pinned Hermes clients passed over public HTTPS; no security configuration changes made during retry",
   "tunnel_id": "b20776f3-782b-4a17-91ad-01d15a3da1cf",
   "r2": {
     "bucket": "gnomon-staging-backups",
     "public_access": false,
     "upload_tested": true,
-    "scheduled_backup_enabled": false,
-    "blocker": "Supplied credentials permit ListObjectsV2 but PutObject returned AccessDenied; Object Read & Write permission required",
-    "upload_succeeded": false,
+    "scheduled_backup_enabled": true,
+    "upload_succeeded": true,
     "list_access_verified": true,
-    "service_healthy_after_failure": true
+    "service_healthy_after_failure": true,
+    "restore_tested": true,
+    "receipt": {
+      "status": "ok",
+      "bucket": "gnomon-staging-backups",
+      "key": "staging/2026/10/01/102453-53ca54e3496d45a6b6c41898cee5612c.tar.age",
+      "sha256": "61d09d10688152baf312e369798d4bc9e9e2f1306dfa44f6dbc7cba478ad8af6",
+      "bytes": 368920,
+      "completed_at": "2026-10-01T10:24:55.917070+00:00",
+      "encryption": "age",
+      "readback_verified": true
+    },
+    "schedule": "03:00 UTC daily plus up to 300 seconds jitter"
   },
   "acceptance": {
-    "transport": "MCP over encrypted SSH; remote Hermes uses VM loopback",
+    "transport": "Public HTTPS MCP; independent pinned Hermes clients on client machine and Targon VM",
     "hermes_installations": "Independent pinned installations on client machine and Targon VM; real discovery/registry/transport, no LLM calls",
     "execution_reference": {
       "ledger_id": "ledger-6244b4c5b6d64c32b57a5a53744d0f17",
@@ -62,7 +73,7 @@
   "restore": {
     "status": "ok",
     "restored_on": "separate machine from Targon VM",
-    "transport_of_backup": "SSH; R2 credentials pending",
+    "transport_of_backup": "R2 download on separate machine",
     "archive_encryption": "age",
     "service_id_preserved": "service-02dddfc6e62a4ed28430c6e7b1886c1d",
     "old_tokens_rejected": true,
