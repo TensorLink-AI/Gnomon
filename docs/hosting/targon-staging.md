@@ -40,6 +40,25 @@ The daily timer is now enabled for 03:00 UTC with up to five minutes of jitter.
 The earlier failed upload recorded no successful backup; the successful receipt is
 included in the deployment report.
 
+## Bounded public concurrency and restart check
+
+Four separate client processes made 96 requests over public HTTPS: 32 synthetic
+actual writes, 32 exact retries and 32 reads of an immutable evidence snapshot.
+All succeeded; retries reused their original receipt IDs and every snapshot still
+scored MAE 1. Direct read-only database inspection confirmed 32 actual rows and
+32 distinct revisions. The processes shared one authorized outcome principal;
+separate-principal isolation was tested in the earlier handoff.
+
+The run took 28.856 seconds. Median request latency was 1.141 seconds, p95 1.265
+seconds and maximum 2.019 seconds, including fresh MCP session setup. These are
+bounded staging measurements, not a capacity SLA or a long-duration soak test.
+
+After an application container restart, public readiness recovered and an exact
+retry returned its original receipt. A fresh remote Hermes process recalled the
+Ditto lesson and independently recomputed MAE 1. A second encrypted R2 backup,
+including the new writes, passed download verification. The daily timer remains
+enabled and the application is healthy.
+
 ## Operator locations
 
 On the VM: `/srv/gnomon/deployment.json`, `/srv/gnomon/clients.json`,

@@ -33,7 +33,17 @@
       "encryption": "age",
       "readback_verified": true
     },
-    "schedule": "03:00 UTC daily plus up to 300 seconds jitter"
+    "schedule": "03:00 UTC daily plus up to 300 seconds jitter",
+    "post_load_backup_receipt": {
+      "status": "ok",
+      "bucket": "gnomon-staging-backups",
+      "key": "staging/2026/10/01/103317-bdd6aa85f86b47a3868a275cdfb69b42.tar.age",
+      "sha256": "3260e23c628d1563f776911addb9a003419f9b31c05e54e0fa7fd4346dde4d72",
+      "bytes": 420136,
+      "completed_at": "2026-10-01T10:33:18.795514+00:00",
+      "encryption": "age",
+      "readback_verified": true
+    }
   },
   "acceptance": {
     "transport": "Public HTTPS MCP; independent pinned Hermes clients on client machine and Targon VM",
@@ -88,5 +98,28 @@
       "upload failure preserves previous success receipt",
       "corrupt readback does not record success"
     ]
+  },
+  "public_concurrency": {
+    "status": "ok",
+    "transport": "public HTTPS MCP",
+    "clients": 4,
+    "unique_writes": 32,
+    "exact_retries": 32,
+    "immutable_snapshot_reads": 32,
+    "errors": 0,
+    "wall_seconds": 28.856,
+    "median_seconds": 1.141,
+    "p95_seconds": 1.265,
+    "max_seconds": 2.019,
+    "series_id": "staging-concurrency-2830c248a42843208a13af5306f33524",
+    "valid_time": "2026-09-30T10:32:02.202391+00:00",
+    "scope": "Bounded synthetic staging probe; four processes sharing an outcome principal; not a capacity SLA or long-duration soak",
+    "persistence_checks": {
+      "actual_rows": 32,
+      "distinct_revisions": 32,
+      "receipt_survived_container_restart": true,
+      "public_readiness_recovered": true
+    },
+    "ditto_recall_after_restart": true
   }
 }
