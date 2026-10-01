@@ -1,8 +1,8 @@
 # Hosted service validation
 
 Recorded 2026-10-01 on the `ditto` branch, Python 3.13.11 and MCP SDK 1.30.0.
-These are synthetic integration and failure tests, not evidence of better forecasts
-or autonomous trading performance. Historical [milestone A storage results](milestone-a-validation.md)
+These include synthetic integration tests and a prospective live measurement.
+They are not evidence of better forecasts or autonomous trading performance. Historical [milestone A storage results](milestone-a-validation.md)
 remain available separately.
 
 ## Live Hermes → Gnomon → Ditto → Hermes
@@ -40,6 +40,46 @@ without executing the file. It creates a private local replay state with generat
 Gnomon test tokens; protect and remove that directory when no longer needed. Reruns
 reuse local idempotency keys. Omitting `--hermes-root` tests the MCP SDK client only.
 The probe performs remote writes and is opt-in, not part of credential-free CI.
+
+## Prospective example with independent agents
+
+A second [recorded example](evidence/live-load-independent-agents.json) used real
+Linux one-minute load averages, sampled prospectively on 2026-10-01. Two independent
+Codex subagents used the actual pinned Hermes MCP client. This exercised agent
+reasoning through Hermes transport, not a full Hermes LLM runner or Bittensor subnet.
+
+Agent A compared historical-mean and last-value forecasts, selected **0.3701171875**,
+and recorded its decision **141 seconds before** the target. The server restarted
+before the outcome. A separate authorized process measured **0.23193359375**, first
+reported it rounded to **0.2**, and recorded the full precision as a later revision.
+The initial review and lesson were exported to the live Ditto test workspace.
+
+After another restart, Agent B received only connection instructions and a search
+query, without the expected answer. It retrieved the Ditto lesson, resolved its
+ledger references, and independently reproduced the original MAE **0.1701171875**.
+Its read-only write attempt was rejected; another project's credentials could not
+resolve the evidence. After the precision revision and a third restart, it
+recomputed MAE **0.13818359375**, checked `evidence_changed=true`, and verified that
+the original lesson, actual and historical review remained unchanged. It correctly
+classified the old lesson as historical rather than current numerical evidence.
+
+The run exposed misleading write diagnostics: a hosted mutation could report zero
+core writes before its enclosing transaction committed. The receipt now reports
+core changes within that transaction; regression coverage checks a real write,
+receipt replay and a duplicate observation under a new request key.
+
+Clock regressions were also observed in this environment. The sampler discarded a
+regressed history window. An early review correctly remained pending because its
+cutoff preceded actual ingestion; a subsequent review used new cutoffs and a new
+idempotency key. One recall rejected a freshly obtained cutoff as future and
+succeeded after obtaining fresh server time. This reinforces the operational need
+for a stable server clock; this example does not establish tolerance of clock skew.
+
+Load average includes runnable and uninterruptible tasks, not CPU utilization.
+Twelve overlapping samples and one outcome establish no forecasting advantage.
+Agent B verified recorded evidence and arithmetic, not the source's real-world
+truth or the narrative's causality. Private credentials and raw local test state
+are excluded from the committed report.
 
 ## Automated local coverage
 

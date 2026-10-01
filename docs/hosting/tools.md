@@ -62,8 +62,12 @@ Review with `gnomon_hosted`:
 }
 ```
 
-This saves a core-generated review with a durable reference. A later review can
-use later cutoffs without overwriting it. Call `gnomon_ledger`:
+This saves a core-generated review with a durable reference. Check `review_ready`
+and `scoring_status`: a successful save may contain a pending review if the cutoff
+precedes an observation’s recording time. A later review uses later cutoffs and a
+new idempotency key, without overwriting the pending review. This matters after
+late ingestion or a backwards wall-clock step; never backdate observations to
+force them into an earlier review. Call `gnomon_ledger`:
 
 ```json
 {

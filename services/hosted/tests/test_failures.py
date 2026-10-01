@@ -117,3 +117,15 @@ def test_backup_tampering_is_rejected_before_restore(tmp_path):
     with pytest.raises(ServiceError, match='manifest'):
         restore(bundle, target)
     assert not target.exists()
+
+
+def test_receipt_reports_core_writes_after_enclosing_commit(tmp_path):
+    store, identity, runtime = setup(tmp_path)
+    args = actual()
+    first = runtime.call(identity, 'gnomon_ledger', args)
+    assert first['result']['execution_diagnostics']['ledger_writes'] == 1
+    duplicate = runtime.call(identity, 'gnomon_ledger', args)
+    assert duplicate == first  # The original committed receipt, not a new write.
+    second = runtime.call(identity, 'gnomon_ledger', args | {'idempotency_key': 'new-request-same-actual'})
+    assert second['result']['execution_diagnostics']['ledger_writes'] == 0
+    assert len(store.ledger(identity.project).actuals_as_of('s')) == 1

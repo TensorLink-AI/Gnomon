@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-01",
+  "test": "Prospective Linux one-minute load average; independent agent handoff through live Ditto",
+  "agents": "Two independent Codex subagents using actual pinned Hermes discovery, registry and MCP transport in fresh processes. No Bittensor subnet deployment or full Hermes LLM runner.",
+  "measurement": "os.getloadavg()[0]; Linux load includes runnable and uninterruptible tasks, not CPU utilization percent.",
+  "server_restarts": 3,
+  "recorded_result": {
+    "execution_id": "8e0138d9-a92b-4388-8015-e34c2a608f6b",
+    "decision_id": "0fd13cfe-75a9-431f-8abb-2e3bbc2dbf47",
+    "lesson_id": "19290bf3-c78c-48e5-b765-791b577310f1",
+    "memory_id": "1f161b99-c7e0-4383-afe0-feb3c179cf91",
+    "export_id": "export-de7b92afcb91461090f94d2b4e006ae2",
+    "provider": "last_value",
+    "forecast": 0.3701171875,
+    "provisional_actual": 0.2,
+    "full_precision_actual": 0.23193359375,
+    "original_mae": 0.1701171875,
+    "forecast_recorded_at": "2026-10-01T05:30:28.886885+00:00",
+    "decision_recorded_at": "2026-10-01T05:30:48.341366+00:00",
+    "target_time": "2026-10-01T05:33:09.489135+00:00",
+    "observation_time": "2026-10-01T05:33:09.500089+00:00",
+    "sampling_lag_seconds": 0.010954
+  },
+  "independent_initial_audit": {
+    "prediction": 0.3701171875,
+    "actual": 0.2,
+    "actual_revision": 0,
+    "mae": 0.1701171875,
+    "n": 1,
+    "matches_saved_lesson": true,
+    "matches_current_review": true,
+    "execution_precedes_target": true,
+    "decision_precedes_target": true,
+    "execution_lead_seconds": 160.60225,
+    "decision_lead_seconds": 141.147769
+  },
+  "independent_revision_audit": {
+    "prediction": 0.3701171875,
+    "revised_actual": 0.23193359375,
+    "actual_revision": 1,
+    "new_mae": 0.13818359375,
+    "saved_lesson_mae": 0.1701171875,
+    "matches_current_review": true,
+    "lesson_unchanged": true,
+    "stored_original_outcome_and_review_unchanged": true,
+    "original_actual_unchanged": true,
+    "execution_unchanged": true,
+    "historical_review_unchanged": true,
+    "evidence_changed": true
+  },
+  "independent_conclusions": [
+    "Revision 1 is eligible at both explicit cutoffs 2026-10-01T05:38:58.146133+00:00; source availability 2026-10-01T05:37:08.483624+00:00 and server recorded time 2026-10-01T05:37:09.254141+00:00 precede them.",
+    "The original lesson, its embedded saved review, original actual, and forecast execution remain unchanged. Historical recall reproduces the initial review.",
+    "The original saved lesson cannot be used as current numerical evidence: its MAE uses provisional rounded revision 0. It remains valid historical evidence at its cutoffs.",
+    "Current MAE is independently recomputed from resolved execution and immutable actual revision 1. Evidence_changed=true correctly flags stale numerical evidence.",
+    "The source claims this is full precision of the same sampled observation, not a new target. Raw host measurement and source provenance are not independently verified. One outcome and correlated history still establish no model superiority; narrative_verified=false.",
+    "One fresh-info recall attempt was rejected with INVALID_ARGUMENTS: Cutoffs cannot be in the future. Its exact requested cutoff was 2026-10-01T05:38:50.764375+00:00. A retry with newly obtained server time succeeded; cause of transient time inconsistency was not investigated."
+  ],
+  "access_checks": {
+    "read_only_write": "FORBIDDEN",
+    "other_project_resolve": "UNAVAILABLE"
+  },
+  "limitations": [
+    "One outcome and twelve overlapping history samples do not establish forecast quality.",
+    "Source availability is a provenance claim; the recalling agent did not independently measure the host.",
+    "Observed clock regressions required discarding one sampling window and requesting new review cutoffs. An early review correctly remained pending; one future-cutoff rejection was retried with fresh server time.",
+    "Private raw transcripts and credentials are excluded from this report."
+  ]
+}

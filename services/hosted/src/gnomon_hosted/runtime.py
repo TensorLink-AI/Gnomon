@@ -136,8 +136,17 @@ class Runtime:
                               'result': asdict(execution.result), 'completion': execution.completion(),
                               'reference': self.reference(identity.project, 'execution', execution.execution_id)}
                 elif operation == 'ledger':
+                    before_core = conn.total_changes
                     with self.session(identity, ledger) as session:
                         result = session.call('gnomon_ledger', args, compact=False)
+                    # Core diagnostics are collected before our enclosing commit.
+                    # Publish the core row changes atomically with this receipt,
+                    # excluding the hosted bookkeeping written below.
+                    diagnostics = result.get('execution_diagnostics')
+                    if isinstance(diagnostics, dict):
+                        diagnostics['ledger_writes'] = conn.total_changes - before_core
+                        diagnostics['scope'] = ('Core changes committed with this hosted request receipt; '
+                                                'excludes hosted receipt and audit rows.')
                 elif operation == 'dataset':
                     record_id = self.record(conn, identity, 'dataset_version', args)
                     result = {'dataset_id': record_id, 'reference': self.reference(identity.project, 'dataset_version', record_id)}
