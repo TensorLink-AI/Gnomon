@@ -43,6 +43,9 @@ configs and keys are operator-owned and need explicit mounts/environment variabl
 Never bake credentials or ledgers into the image. Build from the matching branch:
 this hosted package pins the core development version providing transaction support.
 
+For optional encrypted off-server storage and a daily systemd timer, see
+[R2 backups and restore rehearsals](r2-backups.md).
+
 ## Credentials and project retirement
 
 To rotate a Gnomon token, issue a new token for the same principal and permission

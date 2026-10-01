@@ -1,0 +1,78 @@
+{
+  "recorded_date": "2026-10-01",
+  "status": "staging_running_with_two_pending_setup_items",
+  "commit": "68c0f2c9912403f27c43be570b71a19ed59323a2",
+  "image_id": "sha256:810960980af1ca61e1af5187a0298bde7922e2a5532d0dbdb4f54b4d3b280742",
+  "targon": {
+    "workload_id": "wrk-2n4619t6guld",
+    "name": "gnomon-shared-staging",
+    "resource": "cpu-small-amd",
+    "observed_hourly_cost_usd": 0.12,
+    "ssh_host": "160.202.128.197",
+    "ssh_port": 20000
+  },
+  "endpoint": "https://gnomon-staging.cascade.industries/mcp",
+  "public_endpoint_status": "Cloudflare Browser Integrity Check returns 403/1010; exception rejected by automatic approval review and awaits explicit user approval",
+  "tunnel_id": "b20776f3-782b-4a17-91ad-01d15a3da1cf",
+  "r2": {
+    "bucket": "gnomon-staging-backups",
+    "public_access": false,
+    "upload_tested": false,
+    "scheduled_backup_enabled": false,
+    "blocker": "Bucket-scoped S3 credentials required; management connector cannot create API tokens"
+  },
+  "acceptance": {
+    "transport": "MCP over encrypted SSH; remote Hermes uses VM loopback",
+    "hermes_installations": "Independent pinned installations on client machine and Targon VM; real discovery/registry/transport, no LLM calls",
+    "execution_reference": {
+      "ledger_id": "ledger-6244b4c5b6d64c32b57a5a53744d0f17",
+      "project_id": "project-f0be3f0b25ee41af9b9d32ddc995a7a6",
+      "resource_id": "b34c5316-4ac5-4ae4-b901-eabf0361168a",
+      "resource_type": "execution",
+      "schema_version": "1",
+      "service_id": "service-02dddfc6e62a4ed28430c6e7b1886c1d"
+    },
+    "snapshot_reference": {
+      "schema_version": "1",
+      "service_id": "service-02dddfc6e62a4ed28430c6e7b1886c1d",
+      "project_id": "project-f0be3f0b25ee41af9b9d32ddc995a7a6",
+      "ledger_id": "ledger-6244b4c5b6d64c32b57a5a53744d0f17",
+      "resource_type": "evidence_snapshot",
+      "resource_id": "evidence_snapshot-4950a14cc6f41017f2c5edf0be20416dcfed2d4ba8bf5caefbb3585b23df5b2e"
+    },
+    "analysis_reference": {
+      "schema_version": "1",
+      "service_id": "service-02dddfc6e62a4ed28430c6e7b1886c1d",
+      "project_id": "project-f0be3f0b25ee41af9b9d32ddc995a7a6",
+      "ledger_id": "ledger-6244b4c5b6d64c32b57a5a53744d0f17",
+      "resource_type": "client_analysis",
+      "resource_id": "client_analysis-0527f8528bb66945ac31354be08b4ce5e2eaf7a926efec4d74e70f5a352a5701"
+    },
+    "ditto_memory_id": "22429278-0978-4c0a-9d5a-6c92cf57c1c9",
+    "independent_mae": 1,
+    "synthetic_fixture": true,
+    "cross_project_denied": true,
+    "vm_reboot_verified": true,
+    "boot_before": "44e53fca-d963-4cfa-9ef9-b921e959139f",
+    "boot_after": "afde9928-cfd9-4804-b422-2b4560222eba"
+  },
+  "restore": {
+    "status": "ok",
+    "restored_on": "separate machine from Targon VM",
+    "transport_of_backup": "SSH; R2 credentials pending",
+    "archive_encryption": "age",
+    "service_id_preserved": "service-02dddfc6e62a4ed28430c6e7b1886c1d",
+    "old_tokens_rejected": true,
+    "execution_snapshot_analysis_resolved": true,
+    "local_mae": 1,
+    "cutover_performed": false
+  },
+  "backup_failure_tests": {
+    "passed": 3,
+    "checks": [
+      "snapshot failure restarts service",
+      "upload failure preserves previous success receipt",
+      "corrupt readback does not record success"
+    ]
+  }
+}
