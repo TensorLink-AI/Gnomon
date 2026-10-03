@@ -289,17 +289,20 @@ def _weighted_quantile(pairs, q):
     return pairs[-1][0]
 
 
-def _novelty(query, vectors, names, scales, k):
+def _novelty(query, vectors, names, scales, k, reference_size=512, sample_size=32):
     """Median distance from the query to its k nearest episodes, divided by the same quantity
     for a deterministic sample of remembered episodes: about 1 for a familiar state, well above
-    1 for a state unlike anything remembered."""
+    1 for a state unlike anything remembered. Both are measured against the same evenly spaced
+    reference subset (at most `reference_size` episodes), so the cost stays bounded in long
+    replays and the two distances are comparable."""
     def median_k(target, pool):
         ds = sorted(d for d in (_distance(target, v, names, scales) for v in pool) if d is not None)[:k]
         return ds[len(ds) // 2] if ds else None
-    own = median_k(query, vectors)
-    step = max(1, len(vectors) // 32)
-    typical = [m for i in range(0, len(vectors), step)
-               if (m := median_k(vectors[i], vectors[:i] + vectors[i + 1:])) is not None]
+    reference = vectors[::max(1, len(vectors) // reference_size)]
+    own = median_k(query, reference)
+    step = max(1, len(reference) // sample_size)
+    typical = [m for i in range(0, len(reference), step)
+               if (m := median_k(reference[i], reference[:i] + reference[i + 1:])) is not None]
     if own is None or not typical:
         return None
     base = sorted(typical)[len(typical) // 2]
