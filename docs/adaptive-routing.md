@@ -188,6 +188,49 @@ future_covariate = "onpromotion"   # optional known-future covariate for covaria
 `replay_router(..., covariates={series: {name: [(time, value), ...]}})` computes the same
 features from timestamped `histories`, so replay and live routing select identically.
 
+### Optional memory settings
+
+All off by default; a policy that does not set them behaves exactly as before, and only
+`context` changes the memory spec (so episodes recorded under the old spec stay usable).
+
+| Setting | What it does | When to use it |
+|---|---|---|
+| `profile` | Feature preset instead of `features`: `levels` (the default set), `returns` (volatility ratio, level shift, trend, autocorrelation, skewness, vol-of-vol), `intermittent` (zero share, demand interval, missing share, cv, level shift, volatility ratio) | Return-like series (changes, log returns, P&L), where level features such as `cv` are unstable; intermittent demand |
+| `context` | Past-covariate names whose **latest value at the origin** joins the distance as `context:<name>` | The state that decides which model wins is outside the series: a market-wide volatility, a promotion flag, a peer-group aggregate, the weather |
+| `dedupe_seconds` | At most one neighbour per series within this window | Multi-step horizons or dense origins, where adjacent episodes share outcomes and would overstate `effective_n`; set about the horizon |
+| `shrinkage` | Candidate scores pulled toward 1.0 by effective_n / (effective_n + shrinkage) | Noisy losses or small pools; stops a few lucky neighbours from switching the model |
+| `confidence_z` | Selection uses score + z × standard error (delta-method SE of the weighted ratio) | Switch only on evidence that is better *and* clear |
+| `novelty_threshold` | When the median distance to the k neighbours exceeds this multiple of the typical one among remembered episodes, memory abstains (`memory_abstained`) and the router falls back to context, then all evidence | Structural breaks and new regimes: "never seen this" should not borrow a confident answer |
+| `diagnostics` | Adds `memory_diagnostics`: unshrunk scores, standard errors, 90% intervals, neighbour loss-ratio quantiles (10/50/90%), novelty | Auditing and agent explanations |
+
+Top-level `switch_penalty` (any evidence level) adds hysteresis: every provider other than
+the one this router last served for the series pays the penalty in utility, so the router
+switches only when the gain clears `min_improvement + switch_penalty`. The incumbent comes
+from the router's own recorded decisions (live) or the previous replayed origin (replay),
+and is reported as `incumbent`. Use it where forecast churn has a cost (re-planned orders,
+re-traded positions).
+
+Extra features for `features` lists (computed over *L*): `autocorrelation` (lag 1),
+`skewness` (clipped ±5), `vol_of_vol` (sd of the standard deviations of consecutive
+`short_window` blocks divided by their mean, clipped to 5) and `demand_interval`
+(log of observed values per nonzero value).
+
+### Does memory earn its place?
+
+`memory_ablation(folds, policy, histories, warmup_origins=..., covariates=...)` replays the
+policy with and without its memory (everything else identical) and returns both scores,
+the best fixed provider, the paired mean loss difference with a 90% bootstrap interval
+(resampling whole origins, since series sharing a clock are not independent), the share of
+folds served differently, each arm's switch rate and a `verdict`: `memory_better`,
+`memory_worse` or `not_distinguishable`. Deploy memory only on `memory_better`, and check
+`memory_beats_best_fixed` too: a router that beats its no-memory twin but not the best
+single model is still not worth its cost.
+
+`replay_router(..., accelerate=True)` scores memory with numpy (an optional dependency,
+imported only then): about 9× faster on 10 series × 600 origins, with the same decisions.
+It supports everything except `dedupe_seconds`, `novelty_threshold` and `diagnostics`.
+`decision_losses=True` adds each decision's losses to `return_decisions` output.
+
 ### Feature definitions
 
 Computed from the request's `history` values (not differences) at routing time. *S* is

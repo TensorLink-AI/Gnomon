@@ -54,5 +54,9 @@ for label, policy in (("pooled", base), ("memory", {**base, "memory": memory})):
 
 Compare `router_score` with the best fixed provider, not only the baseline, and judge on
 origins after a warm-up. `return_decisions=True` adds each origin's choice, evidence level
-and label for held-out scoring; `covariates=` supplies the mask and future covariate for
+and label for held-out scoring; `covariates=` supplies the mask, future and `context` covariates for
 memory features.
+
+Then run the twin test: `memory_ablation(folds, validate_policy(memory_policy), histories)`
+replays the same policy without memory and returns the paired difference with a 90%
+bootstrap interval and a `verdict`. Use `accelerate=True` (needs numpy) for large replays.

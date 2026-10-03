@@ -14,6 +14,22 @@
   connection recipes and registry metadata, and the `gnomon-forecast` launcher
   alias. Registry submission remains a separate publication step.
 
+- Episodic memory options, all off by default (existing policies, spec ids and recorded
+  episodes are unchanged): feature `profile` presets (`levels`, `returns`, `intermittent`)
+  and four features (`autocorrelation`, `skewness`, `vol_of_vol`, `demand_interval`);
+  `context` features from the latest value of named past covariates; `dedupe_seconds`
+  (overlapping episodes count once); `shrinkage` and `confidence_z` (uncertainty-aware
+  selection); `novelty_threshold` (abstain on unfamiliar states); `diagnostics`
+  (standard errors, intervals, neighbour loss quantiles, novelty). Router
+  `switch_penalty` adds hysteresis against the last served provider, live and in replay.
+- `memory_ablation()` replays a policy with and without memory and reports the paired
+  difference, a bootstrap interval, switch rates and a verdict.
+  `replay_router(accelerate=True)` scores memory with numpy (optional; about 9x faster
+  on 10 series x 600 origins, same decisions); `decision_losses=True` adds per-decision losses.
+- `trade-with-gnomon`: `scripts/leakage_check.py` (truncation causality check), and
+  backtesting guidance on pre-registration, sealed holdouts, twins for every added layer,
+  and carrying path-dependent state into live trading.
+
 - `trade-with-gnomon` leads with its essence (forecast, record before any order, score
   against outcomes, promote only on evidence and approval) and with volatility: a
   tested worked example and `scripts/volatility.py` (realised volatility, EWMA and
