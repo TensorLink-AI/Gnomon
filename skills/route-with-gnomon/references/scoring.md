@@ -55,8 +55,8 @@ penalty to every provider except the last one served.
 
 ## Optional settings
 
-All off by default; only `context` changes the memory spec, so episodes recorded before
-the other settings were added stay usable.
+Existing defaults stay unchanged. Feature/profile, window, covariate-name and context
+changes alter the feature spec; retrieval/selection settings do not.
 
 | Setting | What it does | When to use it |
 |---|---|---|
@@ -64,13 +64,13 @@ the other settings were added stay usable.
 | `context` | Past-covariate names whose **latest value at the origin** joins the distance as `context:<name>` | The state that decides which model wins is outside the series: a market-wide volatility, a promotion flag, a peer-group aggregate, the weather |
 | `dedupe_seconds` | At most one neighbour per series within this window | Multi-step horizons or dense origins, where adjacent episodes share outcomes and would overstate `effective_n`; set about the horizon |
 | `shrinkage` | Candidate scores pulled toward 1.0 by effective_n / (effective_n + shrinkage) | Noisy losses or small pools; stops a few lucky neighbours from switching the model |
-| `confidence_z` | Selection uses score + z × standard error (delta-method SE of the weighted ratio) | Switch only on evidence that is better *and* clear |
+| `confidence_z` | Selection uses score + z × standard error (delta-method SE of the weighted ratio) | Apply a pessimistic score penalty; validate by replay |
 | `novelty_threshold` | When the median distance to the k neighbours exceeds this multiple of the typical one among remembered episodes, memory abstains (`memory_abstained`) and the router falls back to context, then all evidence | Structural breaks and new regimes: "never seen this" should not borrow a confident answer |
 | `diagnostics` | Adds `memory_diagnostics`: unshrunk scores, standard errors, 90% intervals, neighbour loss-ratio quantiles (10/50/90%), novelty | Auditing and agent explanations |
 
 Top-level `switch_penalty` (any evidence level): every provider except the one last served
 for the series pays this in utility, so the router switches only when the gain clears
-`min_improvement + switch_penalty`. Reported as `incumbent`.
+the existing minimum-improvement rule on adjusted utilities. Reported as `incumbent`.
 
 ## Checking memory against its twin
 
@@ -80,3 +80,8 @@ difference with a 90% bootstrap interval (whole origins resampled), switch rates
 `verdict` (`memory_better`, `memory_worse`, `not_distinguishable`). `replay_router(...,
 accelerate=True)` uses numpy for large replays (not with `dedupe_seconds`,
 `novelty_threshold` or `diagnostics`).
+
+Treat ratio standard errors and intervals as descriptive approximations, not calibrated
+future guarantees; overlapping outcomes and correlated series can make them optimistic.
+For FASE distance/profile/retention and their operational limits, see the
+[full memory guide](https://github.com/TensorLink-AI/Gnomon/blob/main/docs/adaptive-routing.md#experimental-fase-style-memory).

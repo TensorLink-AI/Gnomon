@@ -1,5 +1,7 @@
 # Memory release regression
 
+See [results and recommendation](RESULTS.md).
+
 Compare the integrated memory-v2 / FASE options with the pre-integration 1.4.0
 candidate (`b741aa68bd86d534753ba3b8e5788d720c8c3543`). This reuses the existing
 crypto, alpha and Favorita evaluations. Their dates have already been inspected:
@@ -9,7 +11,8 @@ The input archive is the existing trusted local `gnomon-fase/experiments` direct
 containing `crypto_broad/out/*.pkl`, `cross_domain/out/alpha.pkl`, its protocol and
 `cross_domain/data/favorita`. Raw data is not shipped in the wheel or this repository.
 Do not load untrusted pickle files. Each result hashes the source inputs and runtime;
-previous result files are never overwritten. Install `.[replay]` from the checkout for NumPy replay acceleration
+previous result files are never overwritten. Matching completed runs are reused
+only after input/source/policy checks; a POSIX lock prevents duplicate workers. Install `.[replay]` from the checkout for NumPy replay acceleration
 and bootstrap summaries; it makes no model, LLM or network calls.
 
 ```bash
@@ -19,7 +22,7 @@ PYTHONPATH=src python benchmarks/memory_release_eval/run.py \
 ```
 
 Repeat for the tasks and arms in [protocol.json](protocol.json), then run
-`python benchmarks/memory_release_eval/summarize.py /tmp/memory-eval`.
+`PYTHONPATH=src python benchmarks/memory_release_eval/summarize.py /tmp/memory-eval`.
 Crypto `v2_profile=levels` is exactly the current feature set, so its redundant run
 is omitted. `v2_profile` changes features for alpha and Favorita only. The runner
 checks sampled current-arm decisions against the original release implementation.

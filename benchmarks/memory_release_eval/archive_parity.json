@@ -1,0 +1,146 @@
+[
+  {
+    "task": "rv_1d",
+    "arm": "current",
+    "matched_decisions": 7353,
+    "absolute_score_difference": 0.0
+  },
+  {
+    "task": "rv_1d",
+    "arm": "bounded",
+    "matched_decisions": 7353,
+    "absolute_score_difference": 0.0
+  },
+  {
+    "task": "rv_1d",
+    "arm": "fase",
+    "matched_decisions": 7353,
+    "absolute_score_difference": 0.0
+  },
+  {
+    "task": "rv_1d",
+    "arm": "no_memory",
+    "matched_decisions": 7353,
+    "absolute_score_difference": 0.0
+  },
+  {
+    "task": "rv_3d",
+    "arm": "current",
+    "matched_decisions": 7329,
+    "absolute_score_difference": 0.0
+  },
+  {
+    "task": "rv_3d",
+    "arm": "bounded",
+    "matched_decisions": 7329,
+    "absolute_score_difference": 0.0
+  },
+  {
+    "task": "rv_3d",
+    "arm": "fase",
+    "matched_decisions": 7329,
+    "absolute_score_difference": 0.0
+  },
+  {
+    "task": "rv_3d",
+    "arm": "no_memory",
+    "matched_decisions": 7329,
+    "absolute_score_difference": 0.0
+  },
+  {
+    "task": "rv_7d",
+    "arm": "current",
+    "matched_decisions": 7281,
+    "absolute_score_difference": 0.0
+  },
+  {
+    "task": "rv_7d",
+    "arm": "bounded",
+    "matched_decisions": 7281,
+    "absolute_score_difference": 0.0
+  },
+  {
+    "task": "rv_7d",
+    "arm": "fase",
+    "matched_decisions": 7281,
+    "absolute_score_difference": 0.0
+  },
+  {
+    "task": "rv_7d",
+    "arm": "no_memory",
+    "matched_decisions": 7281,
+    "absolute_score_difference": 0.0
+  },
+  {
+    "task": "rv_14d",
+    "arm": "current",
+    "matched_decisions": 7197,
+    "absolute_score_difference": 0.0
+  },
+  {
+    "task": "rv_14d",
+    "arm": "bounded",
+    "matched_decisions": 7197,
+    "absolute_score_difference": 0.0
+  },
+  {
+    "task": "rv_14d",
+    "arm": "fase",
+    "matched_decisions": 7197,
+    "absolute_score_difference": 0.0
+  },
+  {
+    "task": "rv_14d",
+    "arm": "no_memory",
+    "matched_decisions": 7197,
+    "absolute_score_difference": 0.0
+  },
+  {
+    "task": "downside_7d",
+    "arm": "current",
+    "matched_decisions": 7281,
+    "absolute_score_difference": 0.0
+  },
+  {
+    "task": "downside_7d",
+    "arm": "bounded",
+    "matched_decisions": 7281,
+    "absolute_score_difference": 0.0
+  },
+  {
+    "task": "downside_7d",
+    "arm": "fase",
+    "matched_decisions": 7281,
+    "absolute_score_difference": 0.0
+  },
+  {
+    "task": "downside_7d",
+    "arm": "no_memory",
+    "matched_decisions": 7281,
+    "absolute_score_difference": 0.0
+  },
+  {
+    "task": "range_1d",
+    "arm": "current",
+    "matched_decisions": 7353,
+    "absolute_score_difference": 0.0
+  },
+  {
+    "task": "range_1d",
+    "arm": "bounded",
+    "matched_decisions": 7353,
+    "absolute_score_difference": 0.0
+  },
+  {
+    "task": "range_1d",
+    "arm": "fase",
+    "matched_decisions": 7353,
+    "absolute_score_difference": 0.0
+  },
+  {
+    "task": "range_1d",
+    "arm": "no_memory",
+    "matched_decisions": 7353,
+    "absolute_score_difference": 0.0
+  }
+]

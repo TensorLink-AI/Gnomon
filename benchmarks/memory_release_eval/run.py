@@ -82,12 +82,21 @@ def main():
     args = p.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     target = args.output / f'{args.task}.{args.arm}'
-    if target.with_suffix(target.suffix + '.json').exists():
-        raise SystemExit('Refusing to overwrite an existing result; choose a new output directory.')
+    import fcntl
+    lock = Path(str(target)+'.lock').open('w')
+    fcntl.flock(lock, fcntl.LOCK_EX)
     source_hash = source_fingerprint(Path(gnomon.__file__).parent)
     start = time.monotonic()
     data, raw, cutoff, input_hash = load(args.inputs, args.task)
     policy = policy_for(raw, args.task, args.arm)
+    existing = Path(str(target)+'.json')
+    if existing.exists():
+        saved = json.loads(existing.read_text())
+        assert saved['source_sha256'] == source_hash and saved['input_sha256'] == input_hash
+        assert saved['policy'] == policy and saved['task'] == args.task and saved['arm'] == args.arm
+        assert Path(str(target)+'.decisions.json.gz').is_file()
+        print(json.dumps({'reused_verified_result':str(existing)}), flush=True)
+        return
     print(json.dumps({'task':args.task,'arm':args.arm,'folds':len(data['folds']), 'input_sha256':input_hash}), flush=True)
     checks = []
     if args.arm == 'current':

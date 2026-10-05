@@ -190,8 +190,9 @@ features from timestamped `histories`, so replay and live routing select identic
 
 ### Optional memory settings
 
-All off by default; a policy that does not set them behaves exactly as before, and only
-`context` changes the memory spec (so episodes recorded under the old spec stay usable).
+Existing policies behave as before. Feature/profile, window, covariate-name and context
+changes alter the feature spec; retrieval and selection settings do not. Episodes
+recorded under an unchanged feature spec remain usable.
 
 | Setting | What it does | When to use it |
 |---|---|---|
@@ -199,16 +200,21 @@ All off by default; a policy that does not set them behaves exactly as before, a
 | `context` | Past-covariate names whose **latest value at the origin** joins the distance as `context:<name>` | The state that decides which model wins is outside the series: a market-wide volatility, a promotion flag, a peer-group aggregate, the weather |
 | `dedupe_seconds` | At most one neighbour per series within this window | Multi-step horizons or dense origins, where adjacent episodes share outcomes and would overstate `effective_n`; set about the horizon |
 | `shrinkage` | Candidate scores pulled toward 1.0 by effective_n / (effective_n + shrinkage) | Noisy losses or small pools; stops a few lucky neighbours from switching the model |
-| `confidence_z` | Selection uses score + z × standard error (delta-method SE of the weighted ratio) | Switch only on evidence that is better *and* clear |
+| `confidence_z` | Selection uses score + z × standard error (delta-method SE of the weighted ratio) | Apply a configurable pessimistic score penalty; validate it by replay |
 | `novelty_threshold` | When the median distance to the k neighbours exceeds this multiple of the typical one among remembered episodes, memory abstains (`memory_abstained`) and the router falls back to context, then all evidence | Structural breaks and new regimes: "never seen this" should not borrow a confident answer |
 | `diagnostics` | Adds `memory_diagnostics`: unshrunk scores, standard errors, 90% intervals, neighbour loss-ratio quantiles (10/50/90%), novelty | Auditing and agent explanations |
 
 Top-level `switch_penalty` (any evidence level) adds hysteresis: every provider other than
 the one this router last served for the series pays the penalty in utility, so the router
-switches only when the gain clears `min_improvement + switch_penalty`. The incumbent comes
+still applies the existing minimum-improvement rule to those adjusted utilities.
+The incumbent comes
 from the router's own recorded decisions (live) or the previous replayed origin (replay),
 and is reported as `incumbent`. Use it where forecast churn has a cost (re-planned orders,
 re-traded positions).
+
+The ratio standard errors and 90% intervals are descriptive approximations, not
+calibrated future-performance guarantees. Overlapping outcomes and correlated series
+can make them optimistic; evaluate policies with paired time-block comparisons.
 
 Extra features for `features` lists (computed over *L*): `autocorrelation` (lag 1),
 `skewness` (clipped ±5), `vol_of_vol` (sd of the standard deviations of consecutive
@@ -216,6 +222,10 @@ Extra features for `features` lists (computed over *L*): `autocorrelation` (lag 
 (log of observed values per nonzero value).
 
 ### Experimental FASE-style memory
+
+[Release regression results](../benchmarks/memory_release_eval/RESULTS.md) show mixed
+accuracy and a Favorita regression; keep existing defaults unless your own evaluation
+supports a change.
 
 The optional `distance: "fase"`, `profile: "fase"`, and `retention: "fase"` settings
 implement memory mechanisms described in [FASE](https://arxiv.org/html/2609.32689v1),
