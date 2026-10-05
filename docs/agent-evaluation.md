@@ -47,3 +47,11 @@ service-operator responsibilities.
 Historical benchmark results do not establish gains for the current default.
 The retained workflow uses case schema v2 and current journal receipts.
 The [weighted delivery record](production/PLAN.md) is separate from publication.
+
+## Broader CPU evaluation
+
+The [CPU product evaluation](../benchmarks/cpu_eval/README.md) adds a reproducible
+GIFT-Eval-derived routing comparison and a separate 12-task synthetic workflow
+cohort. CPU smoke tests and the small feasibility pilot validate the runner; they
+do not establish forecasting or agent improvement. Scored Targon execution and
+paid agent comparisons remain pending configuration/access.

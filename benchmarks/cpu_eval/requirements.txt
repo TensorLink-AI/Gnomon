@@ -1,0 +1,6 @@
+# Benchmark-only dependencies; never added to the core Gnomon installation.
+numpy>=1.26,<3
+pandas>=2.2,<3
+scikit-learn>=1.5,<2
+statsforecast>=2,<3
+pyarrow>=17,<24

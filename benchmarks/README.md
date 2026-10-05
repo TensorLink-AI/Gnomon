@@ -25,3 +25,10 @@ The old promotion/audit/generation runners, smoke corpus, host-generated follow-
 answers and response-cache machinery are removed. Recovery: Git commit
 `1642cb2` (earlier benchmark archives: `2cba20e`). Case schema v2 and current
 attempt receipts are required; old results are not comparable with this workflow.
+
+## CPU routing and product evaluation
+
+The [CPU evaluation](cpu_eval/README.md) prepares six GIFT-Eval-derived configurations,
+nine CPU model candidates and six matched selector arms, plus a separate agent
+workflow cohort. It uses a reserved feasibility pilot before scored execution.
+Paid agent runs require explicit model and spending configuration.

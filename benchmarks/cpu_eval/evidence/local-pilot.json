@@ -1,0 +1,1009 @@
+{
+  "agent_model_calls": 0,
+  "finished": {
+    "elapsed_seconds": 77.36874304094817,
+    "protocol_sha256": "824809f78d5810b523e654e0f0632ec771004038c37c3ced81adc8bcc8ed8c24",
+    "report_sha256": "14636a6bc4cc6e5f72b0c7f7d82b7b1d9b48004b3333a6ada9e96073c659c0d5",
+    "runtime": {
+      "dependencies": {
+        "coreforecast": "0.0.18",
+        "joblib": "1.6.0",
+        "numpy": "2.5.3",
+        "pandas": "2.3.3",
+        "pyarrow": "23.0.1",
+        "scikit-learn": "1.9.1",
+        "scipy": "1.18.1",
+        "statsforecast": "2.1.1",
+        "statsmodels": "0.15.0",
+        "threadpoolctl": "3.7.0",
+        "utilsforecast": "0.2.16"
+      },
+      "python": "3.12.3",
+      "source_files": {
+        "benchmarks/cpu_eval/__init__.py": "4c4ae4bcd198cf7577ec87cec90ceff032c6f069b84b08819657c7ef10f7f5c3",
+        "benchmarks/cpu_eval/agent.py": "ee93f2ac3a3a239aeee85b26e7ce098ef459646da75e6249a785f97670388884",
+        "benchmarks/cpu_eval/analyze.py": "c61096d2b27e836aa91763a28299cf9ce48c3b364508bc7d5d1921bbfa589753",
+        "benchmarks/cpu_eval/common.py": "45ce6c2da63aa6790ed93823da8994889a5b09b4e2f0482148857dbb4abbe74c",
+        "benchmarks/cpu_eval/data.py": "b7a045421e86c97a5b82cb06650339e3def0292ae939dd66595e194689ff7524",
+        "benchmarks/cpu_eval/models.py": "0b37d0068bf232a4b0b36a7e039e703d093df3d3012be6d30605bc8479209cd4",
+        "benchmarks/cpu_eval/preflight.py": "e2d779e9e6c3645222dd197185d87ae8821dc46781f3a4d90e0d0b6692504c9a",
+        "benchmarks/cpu_eval/protocol.json": "9b8c10b062f8b63e590e8246f800bd24735cff2f6e178d3417b464d64d5768ac",
+        "benchmarks/cpu_eval/report.py": "1943dc3f24c05d5fa1fceaeee2acab4164ad340388e9ce939bc2fd7f4c4ba1ea",
+        "benchmarks/cpu_eval/requirements.txt": "45005a76ff2378e7da3a7b78b2779c78aa679aee7101f5f03c02b2c44e4deac1",
+        "benchmarks/cpu_eval/run.py": "4cf0edf78fa9b155a9833a4ae1378fae231aa2f02a6a70ed6e5bf08717e11554",
+        "benchmarks/cpu_eval/suite.py": "6d734352054a6d9f34c151f1eb48f78b709d3518d52f6d42a828e6663f250361",
+        "src/gnomon/__init__.py": "30b1cf39a25d63796a5e9db77d406f48dd32c3a2280023abbb4b6843ef8b96a7",
+        "src/gnomon/__main__.py": "76fa916e93e0ae1a6c1bb51dcc0bcf289c014e9f760a47165f8a84401ccf41d7",
+        "src/gnomon/adaptive_router.py": "2cda293f1f61a95ccd549210b8cff0db79f0dd35f5a8b034fa5a8f554f43fe09",
+        "src/gnomon/agent_summary.py": "02905d5090931e584d617b58fb5eb6c3283f500b0f178d1a4929f150d82c167a",
+        "src/gnomon/backtesting.py": "54d1ece9fa209dfa9f713bcbd5023fc34720ecc8ffe856903290be37e3a40fae",
+        "src/gnomon/build_info.py": "d8efeb00391ac6c2bbb48eab714fbe68c98952d8210b55f6fa4a26b61fcdcf43",
+        "src/gnomon/cli.py": "7cac6e9c4f4548d43a79893d34fb585bf5834a06028800f44c21d2c1b163260b",
+        "src/gnomon/context_retrieval.py": "fece491b6d3074acc55be68e7d3cfd7fb926cd8aa2c1f158b9e991d64fdb3e6b",
+        "src/gnomon/contracts.py": "bdacc3cbff24187a2aa0fac696d6c86942e0f421b63d7279f74b8938ea63897a",
+        "src/gnomon/data.py": "2dec4ad6f94d530c891d45b455cdf09d7658cbc09cc46f1cf52ad3de8bbf7686",
+        "src/gnomon/data_refs.py": "77753be1f1103e399354cdbcba90bda703910bbf058ca46932dff3de038f2fb3",
+        "src/gnomon/datasets.py": "19d24d299c1591672ae6e911399ec5e5d89b29460b98df656d9c827fc51fa34e",
+        "src/gnomon/decision_memory.py": "2b9a68422ce4cb6d863f2ed82b25cc56551c81599189f1792799495a514116eb",
+        "src/gnomon/diagnostics.py": "308c5a07e11a6a2f198d31e49b0aee1f6e681e672d777311cf98448fd5527a35",
+        "src/gnomon/discovery.py": "e87bb064c1d46cfdd1f279bbcacb91328d0bcb0c56e06902c6fb8b540358160a",
+        "src/gnomon/ephemeris.py": "9b1207c522bfe677950d8a1be642a4fbf917abd70c52445d35e843e0b7f4a786",
+        "src/gnomon/episodic_memory.py": "b97d8b3674f1c86fbb77f6a34e5a780d7eae2a0cb31912c08ecc593755838730",
+        "src/gnomon/episodic_memory_fast.py": "cc2187a3053adbab8c2c0129df95e463409d61329cbb56837a78c4c9596fc86b",
+        "src/gnomon/evidence_summary.py": "1cd7adfc4a6180e000b32af7120ee77bc735b3df0bb1cb633f767302676f35ec",
+        "src/gnomon/examples/__init__.py": "b56d92bb75ef7e886f9f2a9839ab72d49559751b659bcf5b92f021e606ec4a27",
+        "src/gnomon/examples/compare_history.py": "dcf486c18bf195635add1181989ab22a6a85378b28eb2bd911aa9e695adbd8b5",
+        "src/gnomon/examples/custom_provider.py": "9fcd45939621bea2ac9da72fb0b121b26abb63ca86928baa955069db47dc9ec3",
+        "src/gnomon/examples/decision_memory.py": "ada18a1f1d6f299b5ceac8b5351dd0d5494946522b1e030f4ff8d2285bbf9640",
+        "src/gnomon/examples/mcp_workflow.py": "ebe8d4c3fe9d5a85841422e98293568afb9950f51c04bbc04a4099b900e9f306",
+        "src/gnomon/examples/memory_bridge.py": "8af9b679c5313ed8a66bc2611683d5a5c7305b0fc276e37cc495a6fce9d67a3b",
+        "src/gnomon/fase_memory.py": "f51160649bd2fd09f02527f6ff87c59f200ff0182372ff1c597e99756e806668",
+        "src/gnomon/final_selection.py": "d9d0908f25c834395143fad372ec3bce4dc83ac9c5c99da8da638043689b1f83",
+        "src/gnomon/forecast_adapter.py": "4ab51b9d440dd9f14cfc759752b7465cd68675a17405e8e8a552166368c7e96e",
+        "src/gnomon/hermes_setup.py": "11eafd8fa5bde7e07f2e6e2fee8dfa2977781614dfb574dcfe74445e8dcea39e",
+        "src/gnomon/http_transport.py": "68c25552a456ca1f045cf35d56bfdb5e9c707ae30c884f0f44099c2be1af3010",
+        "src/gnomon/ids.py": "385778d61f2fb41b4cc0e3cd45392f17083923c63f50bc9a96d401a919d20cbb",
+        "src/gnomon/inference.py": "28eea39346b73dec7b31499d0c7ed89bdbee1c4a9e82cbb626872acd7eb48ef8",
+        "src/gnomon/installation.py": "0dfb211a363bbb5a0ccfe70d42fbcdabafbe501bd420f83b0a22890935ed0bac",
+        "src/gnomon/ledger.py": "9c757efeaa241f71abbefcf5eb5107dbd09ddd7017dd21da12d9b2a4edac3a65",
+        "src/gnomon/ledger_history.py": "f6c70306ea2b4f0f53ef80b4499e00bc10c0974dad498066b16c18fd1b398a5d",
+        "src/gnomon/mcp_server.py": "4f883881bf1cf43719d818fb47a8e7ca0d11b13410c121bac5eccbd870f8313e",
+        "src/gnomon/memory_api.py": "472604fdf5b704cf71e9bb9c43958563ac716a893e30ad8b53c077d28ac29196",
+        "src/gnomon/memory_bridge.py": "c03b2a688cb0de3a0947a5bc97dd1a6941733d4eeea28e11a9db5e93768e1638",
+        "src/gnomon/memory_comparison.py": "ac90c146a0ebcd4a0b7eb3a176197163da157331db23b5c936e13777713160af",
+        "src/gnomon/models.py": "407c50dee66814bd6239e68bc13dcfb3da0afbc745d226cdb103dff2c8333d63",
+        "src/gnomon/onboarding.py": "a385a556d42b795634622b6d72d7ff219732512bc05e2c1b0831610374d7393b",
+        "src/gnomon/product_contract.py": "7b55dfbe003313905ccca1003bb4f83c89b28f20b78d87ef6001994a8d029ccc",
+        "src/gnomon/recovery.py": "3a1557b5d2cc1b9f50e1fe0a1a6a2b74bd83f4d04524c59ab150d6ec36429fb6",
+        "src/gnomon/repair.py": "30509ed4cbc2c74ba616d0b50e669ccb78d263b76c0214ffaded74686b6fa079",
+        "src/gnomon/rescoring.py": "d82306a65947f0f6050602c1053c39a854127ac4fb5c5fac13686598fee60708",
+        "src/gnomon/result_refs.py": "79482975af5336f221f2a780f92094b32949b3d4b4c898d11784d97d3d8540cf",
+        "src/gnomon/selfcheck.py": "058ab3eb8cde94850fa1c43a5ef39270fd442959326607aced1761180f3a2f5a",
+        "src/gnomon/session.py": "41a6dd9cf8910d2561774452b75f35410d273998725ef4ae83464918226557cb",
+        "src/gnomon/snapshot_files.py": "28d3fdc07695b646152d6a72ebf3abcf6ad7ca15ad77836540b9122bb7179ab5",
+        "src/gnomon/study_routing.py": "1f458deda6c2ad37bc183c1feb05176dc9f965b894bcf668ac4f23c1aa3b65c0",
+        "src/gnomon/temporal.py": "0c504b5829e5cc336df8fcd22f1fac191bafee727d92d1db12836eb8e37be0f7",
+        "src/gnomon/temporal_ops.py": "66b5e8f5a05076a76033d577951fc37f0257915404eac6f4ac8e98504d4f8316",
+        "src/gnomon/temporal_store.py": "23169413375f99d33ba9b7536e1dcf58f3837a04d571e446bd7308ad801b03cd",
+        "src/gnomon/tool_schemas.py": "1c08a9b94ef1f48eb5f6a03608324e175895666bd02b7fb9c52601fc4cf480c1"
+      },
+      "sources": "9999112d86472bde19ae3714cb30da96d8e0b18aeadfff5f81f4ff5566a3fc4f"
+    }
+  },
+  "raw_outputs": "/tmp/gnomon-cpu-local-pilot-v2",
+  "report": {
+    "all_candidate_dispatch_seconds": 57.702797076140996,
+    "candidate_calls": 972,
+    "candidate_failure_fraction": 0.0,
+    "candidate_failures": 0,
+    "complete": true,
+    "datasets": [
+      {
+        "all_candidate_dispatch_seconds": 25.522287070110906,
+        "claim_scope": "Pilot is feasibility only; fallback forecasts included; conditional scores if incomplete; no default promotion",
+        "complete_scored_folds": 6,
+        "dataset": "electricity/D",
+        "decision_counts": {
+          "bounded": {
+            "auto_ets": 6
+          },
+          "current": {
+            "auto_ets": 6
+          },
+          "equal_ensemble": {
+            "equal_ensemble": 6
+          },
+          "fase": {
+            "auto_ets": 6
+          },
+          "fixed_validation": {
+            "theta": 6
+          },
+          "no_memory": {
+            "auto_ets": 6
+          }
+        },
+        "error_change_percent_vs_current": {
+          "bounded": 0.0,
+          "current": 0.0,
+          "equal_ensemble": -0.7763605333765522,
+          "fase": 0.0,
+          "fixed_validation": -0.10125476859643712,
+          "no_memory": 0.0
+        },
+        "evidence_levels": {
+          "bounded": {
+            "memory": 6
+          },
+          "current": {
+            "memory": 6
+          },
+          "equal_ensemble": {},
+          "fase": {
+            "memory": 6
+          },
+          "fixed_validation": {},
+          "no_memory": {
+            "all": 6
+          }
+        },
+        "expected_scored_folds": 6,
+        "fixed_validation_model": "theta",
+        "identity": "42e2a4ec7f3099213173bb5a71cc9ac1464549a15bccc3902e6eefe6386a98be",
+        "manifest_sha256": "ee699ceabe7221b8b94df2a67d62fe6075eaaa24b26fb28524faf295badbcb70",
+        "missing_folds": [],
+        "mode": "pilot",
+        "model_calls": 486,
+        "model_costs": {
+          "auto_ets": {
+            "calls": 54,
+            "cpu_seconds": 13.374253000000005,
+            "dispatch_seconds": 14.739124472311232
+          },
+          "croston_sba": {
+            "calls": 54,
+            "cpu_seconds": 0.013680999999991422,
+            "dispatch_seconds": 0.03693299076985568
+          },
+          "drift": {
+            "calls": 54,
+            "cpu_seconds": 0.0061409999999959206,
+            "dispatch_seconds": 0.02800976496655494
+          },
+          "hist_gradient_boosting": {
+            "calls": 54,
+            "cpu_seconds": 2.449371000000014,
+            "dispatch_seconds": 2.7216286710463464
+          },
+          "last_value": {
+            "calls": 54,
+            "cpu_seconds": 0.004853999999994054,
+            "dispatch_seconds": 0.13946109428070486
+          },
+          "random_forest": {
+            "calls": 54,
+            "cpu_seconds": 5.507984000000012,
+            "dispatch_seconds": 6.086095915816259
+          },
+          "ridge": {
+            "calls": 54,
+            "cpu_seconds": 0.586276999999992,
+            "dispatch_seconds": 0.6693108449107967
+          },
+          "seasonal_naive": {
+            "calls": 54,
+            "cpu_seconds": 0.005519999999995945,
+            "dispatch_seconds": 0.02676260203588754
+          },
+          "theta": {
+            "calls": 54,
+            "cpu_seconds": 0.9536110000000013,
+            "dispatch_seconds": 1.0749607139732689
+          }
+        },
+        "model_failure_fraction": 0.0,
+        "model_failures": {},
+        "paired_mase_delta_95ci": {
+          "bounded": null,
+          "current": null,
+          "equal_ensemble": null,
+          "fase": null,
+          "fixed_validation": null,
+          "no_memory": null
+        },
+        "policies": {
+          "bounded": {
+            "baseline": "seasonal_naive",
+            "candidates": [
+              "last_value",
+              "drift",
+              "auto_ets",
+              "theta",
+              "croston_sba",
+              "ridge",
+              "random_forest",
+              "hist_gradient_boosting"
+            ],
+            "context": null,
+            "cost_weights": {},
+            "costs": {},
+            "identity_policy": "attested",
+            "limits": {},
+            "lookback_seconds": 3162240000,
+            "memory": {
+              "confidence_z": 0.0,
+              "context": [],
+              "dedupe_seconds": 0.0,
+              "diagnostics": false,
+              "distance": "fase",
+              "features": [
+                "volatility_ratio",
+                "trend",
+                "seasonality",
+                "zero_share",
+                "missing_share",
+                "length_cycles",
+                "level_shift",
+                "cv"
+              ],
+              "future_covariate": null,
+              "k": 32,
+              "long_term_capacity": 900,
+              "long_window": 512,
+              "mask_covariate": null,
+              "min_effective_n": 8.0,
+              "novelty_threshold": null,
+              "own_weight": 1.0,
+              "recency_half_life_days": 0.0,
+              "recent_capacity": 100,
+              "retention": "window",
+              "season": 7,
+              "short_window": 7,
+              "shrinkage": 0.0,
+              "spec_id": "2fb82f145fe3"
+            },
+            "metric": "mae",
+            "min_improvement": 0.02,
+            "min_origins": 5,
+            "pool": {
+              "own_weight": 1.0,
+              "series": [
+                "MT_370",
+                "MT_128",
+                "MT_282"
+              ]
+            },
+            "recent_origins": 20,
+            "shadow_every": 1
+          },
+          "current": {
+            "baseline": "seasonal_naive",
+            "candidates": [
+              "last_value",
+              "drift",
+              "auto_ets",
+              "theta",
+              "croston_sba",
+              "ridge",
+              "random_forest",
+              "hist_gradient_boosting"
+            ],
+            "context": null,
+            "cost_weights": {},
+            "costs": {},
+            "identity_policy": "attested",
+            "limits": {},
+            "lookback_seconds": 3162240000,
+            "memory": {
+              "confidence_z": 0.0,
+              "context": [],
+              "dedupe_seconds": 0.0,
+              "diagnostics": false,
+              "distance": "robust",
+              "features": [
+                "volatility_ratio",
+                "trend",
+                "seasonality",
+                "zero_share",
+                "missing_share",
+                "length_cycles",
+                "level_shift",
+                "cv"
+              ],
+              "future_covariate": null,
+              "k": 32,
+              "long_term_capacity": 900,
+              "long_window": 512,
+              "mask_covariate": null,
+              "min_effective_n": 8.0,
+              "novelty_threshold": null,
+              "own_weight": 1.0,
+              "recency_half_life_days": 0.0,
+              "recent_capacity": 100,
+              "retention": "window",
+              "season": 7,
+              "short_window": 7,
+              "shrinkage": 0.0,
+              "spec_id": "2fb82f145fe3"
+            },
+            "metric": "mae",
+            "min_improvement": 0.02,
+            "min_origins": 5,
+            "pool": {
+              "own_weight": 1.0,
+              "series": [
+                "MT_370",
+                "MT_128",
+                "MT_282"
+              ]
+            },
+            "recent_origins": 20,
+            "shadow_every": 1
+          },
+          "fase": {
+            "baseline": "seasonal_naive",
+            "candidates": [
+              "last_value",
+              "drift",
+              "auto_ets",
+              "theta",
+              "croston_sba",
+              "ridge",
+              "random_forest",
+              "hist_gradient_boosting"
+            ],
+            "context": null,
+            "cost_weights": {},
+            "costs": {},
+            "identity_policy": "attested",
+            "limits": {},
+            "lookback_seconds": 3162240000,
+            "memory": {
+              "confidence_z": 0.0,
+              "context": [],
+              "dedupe_seconds": 0.0,
+              "diagnostics": false,
+              "distance": "fase",
+              "features": [
+                "fase:missing_ratio",
+                "fase:zero_ratio",
+                "fase:global_trend_strength",
+                "fase:recent_trend_strength",
+                "fase:recent_level_shift_strength",
+                "fase:recent_scale_change_strength",
+                "fase:change_strength",
+                "fase:linear_fit_error_ratio",
+                "fase:turning_behavior_ratio",
+                "fase:direction_entropy",
+                "fase:spectral_concentration",
+                "fase:spectral_entropy",
+                "fase:stability",
+                "fase:longest_missing_block",
+                "fase:recent_period_strength",
+                "fase:strongest_covariate_relation",
+                "fase:covariate_relation_stability",
+                "fase:recent_event_rate_change"
+              ],
+              "future_covariate": null,
+              "k": 32,
+              "long_term_capacity": 900,
+              "long_window": 512,
+              "mask_covariate": null,
+              "min_effective_n": 8.0,
+              "novelty_threshold": null,
+              "own_weight": 1.0,
+              "recency_half_life_days": 0.0,
+              "recent_capacity": 100,
+              "retention": "fase",
+              "season": 7,
+              "short_window": 7,
+              "shrinkage": 0.0,
+              "spec_id": "60544f95bf70"
+            },
+            "metric": "mae",
+            "min_improvement": 0.02,
+            "min_origins": 5,
+            "pool": {
+              "own_weight": 1.0,
+              "series": [
+                "MT_370",
+                "MT_128",
+                "MT_282"
+              ]
+            },
+            "recent_origins": 20,
+            "shadow_every": 1
+          },
+          "no_memory": {
+            "baseline": "seasonal_naive",
+            "candidates": [
+              "last_value",
+              "drift",
+              "auto_ets",
+              "theta",
+              "croston_sba",
+              "ridge",
+              "random_forest",
+              "hist_gradient_boosting"
+            ],
+            "context": null,
+            "cost_weights": {},
+            "costs": {},
+            "identity_policy": "attested",
+            "limits": {},
+            "lookback_seconds": 3162240000,
+            "memory": null,
+            "metric": "mae",
+            "min_improvement": 0.02,
+            "min_origins": 5,
+            "pool": {
+              "own_weight": 1.0,
+              "series": [
+                "MT_370",
+                "MT_128",
+                "MT_282"
+              ]
+            },
+            "recent_origins": 20,
+            "shadow_every": 1
+          }
+        },
+        "scores_mase": {
+          "bounded": 1.8597154541490326,
+          "current": 1.8597154541490326,
+          "equal_ensemble": 1.845277357329915,
+          "fase": 1.8597154541490326,
+          "fixed_validation": 1.8578324035693818,
+          "no_memory": 1.8597154541490326
+        },
+        "switches": {
+          "bounded": {
+            "changes": 0,
+            "rate": 0.0,
+            "transitions": 3
+          },
+          "current": {
+            "changes": 0,
+            "rate": 0.0,
+            "transitions": 3
+          },
+          "equal_ensemble": {
+            "changes": 0,
+            "rate": 0.0,
+            "transitions": 3
+          },
+          "fase": {
+            "changes": 0,
+            "rate": 0.0,
+            "transitions": 3
+          },
+          "fixed_validation": {
+            "changes": 0,
+            "rate": 0.0,
+            "transitions": 3
+          },
+          "no_memory": {
+            "changes": 0,
+            "rate": 0.0,
+            "transitions": 3
+          }
+        },
+        "validation_folds_mature_at_scored_start": 24
+      },
+      {
+        "all_candidate_dispatch_seconds": 32.18051000603009,
+        "claim_scope": "Pilot is feasibility only; fallback forecasts included; conditional scores if incomplete; no default promotion",
+        "complete_scored_folds": 6,
+        "dataset": "SZ_TAXI/H",
+        "decision_counts": {
+          "bounded": {
+            "random_forest": 6
+          },
+          "current": {
+            "random_forest": 6
+          },
+          "equal_ensemble": {
+            "equal_ensemble": 6
+          },
+          "fase": {
+            "auto_ets": 1,
+            "random_forest": 3,
+            "ridge": 2
+          },
+          "fixed_validation": {
+            "random_forest": 6
+          },
+          "no_memory": {
+            "random_forest": 6
+          }
+        },
+        "error_change_percent_vs_current": {
+          "bounded": 0.0,
+          "current": 0.0,
+          "equal_ensemble": 10.918752657741827,
+          "fase": 0.5100016756372172,
+          "fixed_validation": 0.0,
+          "no_memory": 0.0
+        },
+        "evidence_levels": {
+          "bounded": {
+            "memory": 6
+          },
+          "current": {
+            "all": 6
+          },
+          "equal_ensemble": {},
+          "fase": {
+            "memory": 6
+          },
+          "fixed_validation": {},
+          "no_memory": {
+            "all": 6
+          }
+        },
+        "expected_scored_folds": 6,
+        "fixed_validation_model": "random_forest",
+        "identity": "789122fed9cc186735b241087a7ebdbf33015b1bbb7eebe251f5568e8b6717f6",
+        "manifest_sha256": "b769eef5e5ddfb94fe1036d65c32f84f6b2a5cbbf05861b39d6465f18034a220",
+        "missing_folds": [],
+        "mode": "pilot",
+        "model_calls": 486,
+        "model_costs": {
+          "auto_ets": {
+            "calls": 54,
+            "cpu_seconds": 15.407837,
+            "dispatch_seconds": 16.97626845788909
+          },
+          "croston_sba": {
+            "calls": 54,
+            "cpu_seconds": 0.013967999999983466,
+            "dispatch_seconds": 0.03716610686387867
+          },
+          "drift": {
+            "calls": 54,
+            "cpu_seconds": 0.006033000000001017,
+            "dispatch_seconds": 0.02685028314590454
+          },
+          "hist_gradient_boosting": {
+            "calls": 54,
+            "cpu_seconds": 3.389324000000005,
+            "dispatch_seconds": 3.7557210176601075
+          },
+          "last_value": {
+            "calls": 54,
+            "cpu_seconds": 0.004831999999999302,
+            "dispatch_seconds": 0.13930378708755597
+          },
+          "random_forest": {
+            "calls": 54,
+            "cpu_seconds": 8.903913999999995,
+            "dispatch_seconds": 9.820853072218597
+          },
+          "ridge": {
+            "calls": 54,
+            "cpu_seconds": 0.787135999999989,
+            "dispatch_seconds": 0.8913149751024321
+          },
+          "seasonal_naive": {
+            "calls": 54,
+            "cpu_seconds": 0.005898999999978434,
+            "dispatch_seconds": 0.027704760141205043
+          },
+          "theta": {
+            "calls": 54,
+            "cpu_seconds": 0.4359819999999939,
+            "dispatch_seconds": 0.5053275459213182
+          }
+        },
+        "model_failure_fraction": 0.0,
+        "model_failures": {},
+        "paired_mase_delta_95ci": {
+          "bounded": null,
+          "current": null,
+          "equal_ensemble": null,
+          "fase": null,
+          "fixed_validation": null,
+          "no_memory": null
+        },
+        "policies": {
+          "bounded": {
+            "baseline": "seasonal_naive",
+            "candidates": [
+              "last_value",
+              "drift",
+              "auto_ets",
+              "theta",
+              "croston_sba",
+              "ridge",
+              "random_forest",
+              "hist_gradient_boosting"
+            ],
+            "context": null,
+            "cost_weights": {},
+            "costs": {},
+            "identity_policy": "attested",
+            "limits": {},
+            "lookback_seconds": 3162240000,
+            "memory": {
+              "confidence_z": 0.0,
+              "context": [],
+              "dedupe_seconds": 0.0,
+              "diagnostics": false,
+              "distance": "fase",
+              "features": [
+                "volatility_ratio",
+                "trend",
+                "seasonality",
+                "zero_share",
+                "missing_share",
+                "length_cycles",
+                "level_shift",
+                "cv"
+              ],
+              "future_covariate": null,
+              "k": 32,
+              "long_term_capacity": 900,
+              "long_window": 512,
+              "mask_covariate": null,
+              "min_effective_n": 8.0,
+              "novelty_threshold": null,
+              "own_weight": 1.0,
+              "recency_half_life_days": 0.0,
+              "recent_capacity": 100,
+              "retention": "window",
+              "season": 24,
+              "short_window": 24,
+              "shrinkage": 0.0,
+              "spec_id": "c461cae2bd4f"
+            },
+            "metric": "mae",
+            "min_improvement": 0.02,
+            "min_origins": 5,
+            "pool": {
+              "own_weight": 1.0,
+              "series": [
+                "92900",
+                "90218",
+                "103764"
+              ]
+            },
+            "recent_origins": 20,
+            "shadow_every": 1
+          },
+          "current": {
+            "baseline": "seasonal_naive",
+            "candidates": [
+              "last_value",
+              "drift",
+              "auto_ets",
+              "theta",
+              "croston_sba",
+              "ridge",
+              "random_forest",
+              "hist_gradient_boosting"
+            ],
+            "context": null,
+            "cost_weights": {},
+            "costs": {},
+            "identity_policy": "attested",
+            "limits": {},
+            "lookback_seconds": 3162240000,
+            "memory": {
+              "confidence_z": 0.0,
+              "context": [],
+              "dedupe_seconds": 0.0,
+              "diagnostics": false,
+              "distance": "robust",
+              "features": [
+                "volatility_ratio",
+                "trend",
+                "seasonality",
+                "zero_share",
+                "missing_share",
+                "length_cycles",
+                "level_shift",
+                "cv"
+              ],
+              "future_covariate": null,
+              "k": 32,
+              "long_term_capacity": 900,
+              "long_window": 512,
+              "mask_covariate": null,
+              "min_effective_n": 8.0,
+              "novelty_threshold": null,
+              "own_weight": 1.0,
+              "recency_half_life_days": 0.0,
+              "recent_capacity": 100,
+              "retention": "window",
+              "season": 24,
+              "short_window": 24,
+              "shrinkage": 0.0,
+              "spec_id": "c461cae2bd4f"
+            },
+            "metric": "mae",
+            "min_improvement": 0.02,
+            "min_origins": 5,
+            "pool": {
+              "own_weight": 1.0,
+              "series": [
+                "92900",
+                "90218",
+                "103764"
+              ]
+            },
+            "recent_origins": 20,
+            "shadow_every": 1
+          },
+          "fase": {
+            "baseline": "seasonal_naive",
+            "candidates": [
+              "last_value",
+              "drift",
+              "auto_ets",
+              "theta",
+              "croston_sba",
+              "ridge",
+              "random_forest",
+              "hist_gradient_boosting"
+            ],
+            "context": null,
+            "cost_weights": {},
+            "costs": {},
+            "identity_policy": "attested",
+            "limits": {},
+            "lookback_seconds": 3162240000,
+            "memory": {
+              "confidence_z": 0.0,
+              "context": [],
+              "dedupe_seconds": 0.0,
+              "diagnostics": false,
+              "distance": "fase",
+              "features": [
+                "fase:missing_ratio",
+                "fase:zero_ratio",
+                "fase:global_trend_strength",
+                "fase:recent_trend_strength",
+                "fase:recent_level_shift_strength",
+                "fase:recent_scale_change_strength",
+                "fase:change_strength",
+                "fase:linear_fit_error_ratio",
+                "fase:turning_behavior_ratio",
+                "fase:direction_entropy",
+                "fase:spectral_concentration",
+                "fase:spectral_entropy",
+                "fase:stability",
+                "fase:longest_missing_block",
+                "fase:recent_period_strength",
+                "fase:strongest_covariate_relation",
+                "fase:covariate_relation_stability",
+                "fase:recent_event_rate_change"
+              ],
+              "future_covariate": null,
+              "k": 32,
+              "long_term_capacity": 900,
+              "long_window": 512,
+              "mask_covariate": null,
+              "min_effective_n": 8.0,
+              "novelty_threshold": null,
+              "own_weight": 1.0,
+              "recency_half_life_days": 0.0,
+              "recent_capacity": 100,
+              "retention": "fase",
+              "season": 24,
+              "short_window": 24,
+              "shrinkage": 0.0,
+              "spec_id": "8e177c222740"
+            },
+            "metric": "mae",
+            "min_improvement": 0.02,
+            "min_origins": 5,
+            "pool": {
+              "own_weight": 1.0,
+              "series": [
+                "92900",
+                "90218",
+                "103764"
+              ]
+            },
+            "recent_origins": 20,
+            "shadow_every": 1
+          },
+          "no_memory": {
+            "baseline": "seasonal_naive",
+            "candidates": [
+              "last_value",
+              "drift",
+              "auto_ets",
+              "theta",
+              "croston_sba",
+              "ridge",
+              "random_forest",
+              "hist_gradient_boosting"
+            ],
+            "context": null,
+            "cost_weights": {},
+            "costs": {},
+            "identity_policy": "attested",
+            "limits": {},
+            "lookback_seconds": 3162240000,
+            "memory": null,
+            "metric": "mae",
+            "min_improvement": 0.02,
+            "min_origins": 5,
+            "pool": {
+              "own_weight": 1.0,
+              "series": [
+                "92900",
+                "90218",
+                "103764"
+              ]
+            },
+            "recent_origins": 20,
+            "shadow_every": 1
+          }
+        },
+        "scores_mase": {
+          "bounded": 0.6237597626706872,
+          "current": 0.6237597626706872,
+          "equal_ensemble": 0.691866548335217,
+          "fase": 0.6269409479122584,
+          "fixed_validation": 0.6237597626706872,
+          "no_memory": 0.6237597626706872
+        },
+        "switches": {
+          "bounded": {
+            "changes": 0,
+            "rate": 0.0,
+            "transitions": 3
+          },
+          "current": {
+            "changes": 0,
+            "rate": 0.0,
+            "transitions": 3
+          },
+          "equal_ensemble": {
+            "changes": 0,
+            "rate": 0.0,
+            "transitions": 3
+          },
+          "fase": {
+            "changes": 3,
+            "rate": 1.0,
+            "transitions": 3
+          },
+          "fixed_validation": {
+            "changes": 0,
+            "rate": 0.0,
+            "transitions": 3
+          },
+          "no_memory": {
+            "changes": 0,
+            "rate": 0.0,
+            "transitions": 3
+          }
+        },
+        "validation_folds_mature_at_scored_start": 24
+      }
+    ],
+    "limits": "No pooled significance claim across six configurations; intervals are exploratory except the declared primary pair. Not official GIFT-Eval scores.",
+    "macro_mase": {
+      "bounded": 1.24173760840986,
+      "current": 1.24173760840986,
+      "equal_ensemble": 1.268571952832566,
+      "fase": 1.2433282010306455,
+      "fixed_validation": 1.2407960831200344,
+      "no_memory": 1.24173760840986
+    },
+    "missing_configurations": [],
+    "mode": "pilot",
+    "pilot_feasible": true,
+    "planned_configurations": [
+      "electricity/D",
+      "SZ_TAXI/H"
+    ],
+    "promotion": "none; review paired per-configuration results, coverage and failure rates"
+  },
+  "scored_evaluation": "not_run",
+  "status": "local_feasibility_only_not_Targon",
+  "suite": {
+    "host": {
+      "cpu.max": null,
+      "host_cpu_count": 16,
+      "hostname": "MSI",
+      "memory.max": null,
+      "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.39"
+    },
+    "mode": "pilot",
+    "protocol_sha256": "824809f78d5810b523e654e0f0632ec771004038c37c3ced81adc8bcc8ed8c24",
+    "runtime": {
+      "dependencies": {
+        "coreforecast": "0.0.18",
+        "joblib": "1.6.0",
+        "numpy": "2.5.3",
+        "pandas": "2.3.3",
+        "pyarrow": "23.0.1",
+        "scikit-learn": "1.9.1",
+        "scipy": "1.18.1",
+        "statsforecast": "2.1.1",
+        "statsmodels": "0.15.0",
+        "threadpoolctl": "3.7.0",
+        "utilsforecast": "0.2.16"
+      },
+      "python": "3.12.3",
+      "source_files": {
+        "benchmarks/cpu_eval/__init__.py": "4c4ae4bcd198cf7577ec87cec90ceff032c6f069b84b08819657c7ef10f7f5c3",
+        "benchmarks/cpu_eval/agent.py": "ee93f2ac3a3a239aeee85b26e7ce098ef459646da75e6249a785f97670388884",
+        "benchmarks/cpu_eval/analyze.py": "c61096d2b27e836aa91763a28299cf9ce48c3b364508bc7d5d1921bbfa589753",
+        "benchmarks/cpu_eval/common.py": "45ce6c2da63aa6790ed93823da8994889a5b09b4e2f0482148857dbb4abbe74c",
+        "benchmarks/cpu_eval/data.py": "b7a045421e86c97a5b82cb06650339e3def0292ae939dd66595e194689ff7524",
+        "benchmarks/cpu_eval/models.py": "0b37d0068bf232a4b0b36a7e039e703d093df3d3012be6d30605bc8479209cd4",
+        "benchmarks/cpu_eval/preflight.py": "e2d779e9e6c3645222dd197185d87ae8821dc46781f3a4d90e0d0b6692504c9a",
+        "benchmarks/cpu_eval/protocol.json": "9b8c10b062f8b63e590e8246f800bd24735cff2f6e178d3417b464d64d5768ac",
+        "benchmarks/cpu_eval/report.py": "1943dc3f24c05d5fa1fceaeee2acab4164ad340388e9ce939bc2fd7f4c4ba1ea",
+        "benchmarks/cpu_eval/requirements.txt": "45005a76ff2378e7da3a7b78b2779c78aa679aee7101f5f03c02b2c44e4deac1",
+        "benchmarks/cpu_eval/run.py": "4cf0edf78fa9b155a9833a4ae1378fae231aa2f02a6a70ed6e5bf08717e11554",
+        "benchmarks/cpu_eval/suite.py": "6d734352054a6d9f34c151f1eb48f78b709d3518d52f6d42a828e6663f250361",
+        "src/gnomon/__init__.py": "30b1cf39a25d63796a5e9db77d406f48dd32c3a2280023abbb4b6843ef8b96a7",
+        "src/gnomon/__main__.py": "76fa916e93e0ae1a6c1bb51dcc0bcf289c014e9f760a47165f8a84401ccf41d7",
+        "src/gnomon/adaptive_router.py": "2cda293f1f61a95ccd549210b8cff0db79f0dd35f5a8b034fa5a8f554f43fe09",
+        "src/gnomon/agent_summary.py": "02905d5090931e584d617b58fb5eb6c3283f500b0f178d1a4929f150d82c167a",
+        "src/gnomon/backtesting.py": "54d1ece9fa209dfa9f713bcbd5023fc34720ecc8ffe856903290be37e3a40fae",
+        "src/gnomon/build_info.py": "d8efeb00391ac6c2bbb48eab714fbe68c98952d8210b55f6fa4a26b61fcdcf43",
+        "src/gnomon/cli.py": "7cac6e9c4f4548d43a79893d34fb585bf5834a06028800f44c21d2c1b163260b",
+        "src/gnomon/context_retrieval.py": "fece491b6d3074acc55be68e7d3cfd7fb926cd8aa2c1f158b9e991d64fdb3e6b",
+        "src/gnomon/contracts.py": "bdacc3cbff24187a2aa0fac696d6c86942e0f421b63d7279f74b8938ea63897a",
+        "src/gnomon/data.py": "2dec4ad6f94d530c891d45b455cdf09d7658cbc09cc46f1cf52ad3de8bbf7686",
+        "src/gnomon/data_refs.py": "77753be1f1103e399354cdbcba90bda703910bbf058ca46932dff3de038f2fb3",
+        "src/gnomon/datasets.py": "19d24d299c1591672ae6e911399ec5e5d89b29460b98df656d9c827fc51fa34e",
+        "src/gnomon/decision_memory.py": "2b9a68422ce4cb6d863f2ed82b25cc56551c81599189f1792799495a514116eb",
+        "src/gnomon/diagnostics.py": "308c5a07e11a6a2f198d31e49b0aee1f6e681e672d777311cf98448fd5527a35",
+        "src/gnomon/discovery.py": "e87bb064c1d46cfdd1f279bbcacb91328d0bcb0c56e06902c6fb8b540358160a",
+        "src/gnomon/ephemeris.py": "9b1207c522bfe677950d8a1be642a4fbf917abd70c52445d35e843e0b7f4a786",
+        "src/gnomon/episodic_memory.py": "b97d8b3674f1c86fbb77f6a34e5a780d7eae2a0cb31912c08ecc593755838730",
+        "src/gnomon/episodic_memory_fast.py": "cc2187a3053adbab8c2c0129df95e463409d61329cbb56837a78c4c9596fc86b",
+        "src/gnomon/evidence_summary.py": "1cd7adfc4a6180e000b32af7120ee77bc735b3df0bb1cb633f767302676f35ec",
+        "src/gnomon/examples/__init__.py": "b56d92bb75ef7e886f9f2a9839ab72d49559751b659bcf5b92f021e606ec4a27",
+        "src/gnomon/examples/compare_history.py": "dcf486c18bf195635add1181989ab22a6a85378b28eb2bd911aa9e695adbd8b5",
+        "src/gnomon/examples/custom_provider.py": "9fcd45939621bea2ac9da72fb0b121b26abb63ca86928baa955069db47dc9ec3",
+        "src/gnomon/examples/decision_memory.py": "ada18a1f1d6f299b5ceac8b5351dd0d5494946522b1e030f4ff8d2285bbf9640",
+        "src/gnomon/examples/mcp_workflow.py": "ebe8d4c3fe9d5a85841422e98293568afb9950f51c04bbc04a4099b900e9f306",
+        "src/gnomon/examples/memory_bridge.py": "8af9b679c5313ed8a66bc2611683d5a5c7305b0fc276e37cc495a6fce9d67a3b",
+        "src/gnomon/fase_memory.py": "f51160649bd2fd09f02527f6ff87c59f200ff0182372ff1c597e99756e806668",
+        "src/gnomon/final_selection.py": "d9d0908f25c834395143fad372ec3bce4dc83ac9c5c99da8da638043689b1f83",
+        "src/gnomon/forecast_adapter.py": "4ab51b9d440dd9f14cfc759752b7465cd68675a17405e8e8a552166368c7e96e",
+        "src/gnomon/hermes_setup.py": "11eafd8fa5bde7e07f2e6e2fee8dfa2977781614dfb574dcfe74445e8dcea39e",
+        "src/gnomon/http_transport.py": "68c25552a456ca1f045cf35d56bfdb5e9c707ae30c884f0f44099c2be1af3010",
+        "src/gnomon/ids.py": "385778d61f2fb41b4cc0e3cd45392f17083923c63f50bc9a96d401a919d20cbb",
+        "src/gnomon/inference.py": "28eea39346b73dec7b31499d0c7ed89bdbee1c4a9e82cbb626872acd7eb48ef8",
+        "src/gnomon/installation.py": "0dfb211a363bbb5a0ccfe70d42fbcdabafbe501bd420f83b0a22890935ed0bac",
+        "src/gnomon/ledger.py": "9c757efeaa241f71abbefcf5eb5107dbd09ddd7017dd21da12d9b2a4edac3a65",
+        "src/gnomon/ledger_history.py": "f6c70306ea2b4f0f53ef80b4499e00bc10c0974dad498066b16c18fd1b398a5d",
+        "src/gnomon/mcp_server.py": "4f883881bf1cf43719d818fb47a8e7ca0d11b13410c121bac5eccbd870f8313e",
+        "src/gnomon/memory_api.py": "472604fdf5b704cf71e9bb9c43958563ac716a893e30ad8b53c077d28ac29196",
+        "src/gnomon/memory_bridge.py": "c03b2a688cb0de3a0947a5bc97dd1a6941733d4eeea28e11a9db5e93768e1638",
+        "src/gnomon/memory_comparison.py": "ac90c146a0ebcd4a0b7eb3a176197163da157331db23b5c936e13777713160af",
+        "src/gnomon/models.py": "407c50dee66814bd6239e68bc13dcfb3da0afbc745d226cdb103dff2c8333d63",
+        "src/gnomon/onboarding.py": "a385a556d42b795634622b6d72d7ff219732512bc05e2c1b0831610374d7393b",
+        "src/gnomon/product_contract.py": "7b55dfbe003313905ccca1003bb4f83c89b28f20b78d87ef6001994a8d029ccc",
+        "src/gnomon/recovery.py": "3a1557b5d2cc1b9f50e1fe0a1a6a2b74bd83f4d04524c59ab150d6ec36429fb6",
+        "src/gnomon/repair.py": "30509ed4cbc2c74ba616d0b50e669ccb78d263b76c0214ffaded74686b6fa079",
+        "src/gnomon/rescoring.py": "d82306a65947f0f6050602c1053c39a854127ac4fb5c5fac13686598fee60708",
+        "src/gnomon/result_refs.py": "79482975af5336f221f2a780f92094b32949b3d4b4c898d11784d97d3d8540cf",
+        "src/gnomon/selfcheck.py": "058ab3eb8cde94850fa1c43a5ef39270fd442959326607aced1761180f3a2f5a",
+        "src/gnomon/session.py": "41a6dd9cf8910d2561774452b75f35410d273998725ef4ae83464918226557cb",
+        "src/gnomon/snapshot_files.py": "28d3fdc07695b646152d6a72ebf3abcf6ad7ca15ad77836540b9122bb7179ab5",
+        "src/gnomon/study_routing.py": "1f458deda6c2ad37bc183c1feb05176dc9f965b894bcf668ac4f23c1aa3b65c0",
+        "src/gnomon/temporal.py": "0c504b5829e5cc336df8fcd22f1fac191bafee727d92d1db12836eb8e37be0f7",
+        "src/gnomon/temporal_ops.py": "66b5e8f5a05076a76033d577951fc37f0257915404eac6f4ac8e98504d4f8316",
+        "src/gnomon/temporal_store.py": "23169413375f99d33ba9b7536e1dcf58f3837a04d571e446bd7308ad801b03cd",
+        "src/gnomon/tool_schemas.py": "1c08a9b94ef1f48eb5f6a03608324e175895666bd02b7fb9c52601fc4cf480c1"
+      },
+      "sources": "9999112d86472bde19ae3714cb30da96d8e0b18aeadfff5f81f4ff5566a3fc4f"
+    }
+  },
+  "test_result": {
+    "passed": 311,
+    "scope": "benchmarks/tests",
+    "skipped": 23
+  }
+}
