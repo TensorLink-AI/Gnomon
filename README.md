@@ -6,12 +6,13 @@
 
 <!-- mcp-name: io.github.TensorLink-AI/gnomon -->
 
-## Know more than the prediction.
+**Gnomon is a forecasting toolkit for AI agents, with model comparison and memory
+of past results.**
 
-Inspect time series, forecast with your models, compare forecasts, and review observed outcomes.
-
-Gnomon gives people and AI agents a shared Python, CLI and MCP interface, with
-recorded evidence behind the results.
+Agents can discover available models, run forecasts, compare them on historical
+outcomes, and retrieve relevant past results to inform future model choices.
+People and agents share Python, CLI and MCP interfaces with structured evidence
+behind the results.
 
 Use your own forecasting software. Add a remote service or a persistent ledger
 when you need one.
@@ -146,6 +147,28 @@ does not itself choose a model or validate its written explanation.
 
 Optional date and time tools handle timezones, calendar shifts, intervals and event
 order. They calculate supplied facts; they do not claim to improve an LLM's reasoning.
+
+## Related tools and research
+
+Gnomon brings model discovery, forecasting, evaluation and outcome review into a
+shared agent workflow. Several projects cover related parts of that workflow:
+
+| Project | Focus and overlap |
+| --- | --- |
+| [sktime-mcp](https://github.com/sktime/sktime-mcp) | Exposes sktime's estimator registry and execution through MCP so agents can discover, compose and run time-series workflows. |
+| [AutoGluon-TimeSeries](https://auto.gluon.ai/stable/tutorials/timeseries/forecasting-quick-start.html) | Automates training, selection and ensembling across forecasting models. |
+| [Darts](https://github.com/unit8co/darts) | Provides a common Python interface for forecasting models, backtesting, covariates and ensembles. |
+| [Nixtla / TimeGPT](https://github.com/Nixtla/nixtla) | Provides a pretrained forecasting model and API tooling for forecasting and anomaly detection. |
+| [FASE](https://arxiv.org/abs/2609.32689) | Research on forecasting agents that combine episodic memory with online ranking-policy learning from delayed outcomes. |
+
+Forecasting libraries can supply models through Gnomon's
+[provider interface](docs/production/INFERENCE.md). Gnomon adds recorded outcomes
+and evidence retrieval around those calls; model software is installed separately.
+Its optional [FASE-inspired memory settings](docs/adaptive-routing.md#episodic-memory)
+implement parts of the research approach, not the paper's full agent or learned
+ranking policy. [Matched replay results](benchmarks/memory_release_eval/RESULTS.md)
+were mixed, so these settings remain opt-in. Gnomon does not claim superior
+forecasting accuracy over the projects above.
 
 ## Status and guides
 
