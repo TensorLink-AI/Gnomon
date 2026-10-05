@@ -29,6 +29,30 @@ def check_supported(memory: dict) -> None:
                                    details={"rejected_fields": [f"memory.{k}" for k in used]})
 
 
+def bounded_distances(F, q, names):
+    """Vectorised equation 1, including feature groups and zero-scale limits."""
+    from .fase_memory import _GROUP
+    F, q = np.asarray(F, dtype=float), np.asarray(q, dtype=float)
+    scale = np.full(len(names), np.nan)
+    for j in range(len(names)):
+        xs = F[:, j][np.isfinite(F[:, j])]
+        if len(xs):
+            scale[j] = float(np.std(xs))
+    have = np.isfinite(F) & np.isfinite(q)[None, :] & np.isfinite(scale)[None, :]
+    delta = np.abs(F-q[None, :])
+    den = delta+scale[None, :]
+    rho = np.divide(delta, den, out=np.zeros_like(delta), where=have & (den>0))
+    groups = {}
+    for i, name in enumerate(names):
+        groups.setdefault(_GROUP.get(name, 'context' if name.startswith('context:') else name), []).append(i)
+    total, count = np.zeros(len(F)), np.zeros(len(F))
+    for idx in groups.values():
+        shared = have[:, idx].sum(axis=1)
+        total += np.divide(rho[:, idx].sum(axis=1), shared, out=np.zeros(len(F)), where=shared>0)
+        count += shared>0
+    return np.divide(total, count, out=np.full(len(F), np.nan), where=count>0)
+
+
 class MemoryIndex:
     """Matured episodes as arrays, appended once each."""
 
@@ -84,20 +108,24 @@ class MemoryIndex:
         names, memory = self.names, self.memory
         q = np.array([np.nan if query.get(n) is None else float(query[n]) for n in names])
         nf = len(names)
-        scale = np.full(nf, np.nan)
-        for j in range(nf):
-            xs = np.sort(F[:, j][np.isfinite(F[:, j])])
-            if len(xs) == 0:
-                continue
-            med = xs[len(xs) // 2]
-            mad = np.sort(np.abs(xs - med))[len(xs) // 2]
-            scale[j] = 1.4826 * mad if mad > 0 else (float(np.std(xs)) or 1.0)
-        have = np.isfinite(F) & np.isfinite(q)[None, :] & np.isfinite(scale)[None, :]
-        shared = have.sum(axis=1)
-        with np.errstate(invalid="ignore", divide="ignore"):
-            z = np.where(have, (F - q[None, :]) / np.where(np.isfinite(scale), scale, 1.0)[None, :], 0.0)
-            d = np.sqrt((z ** 2).sum(axis=1) * nf / shared)
-        ok = shared * 2 >= nf
+        if memory.get("distance") == "fase":
+            d = bounded_distances(F, q, names)
+            ok = np.isfinite(d)
+        else:
+            scale = np.full(nf, np.nan)
+            for j in range(nf):
+                xs = np.sort(F[:, j][np.isfinite(F[:, j])])
+                if len(xs) == 0:
+                    continue
+                med = xs[len(xs) // 2]
+                mad = np.sort(np.abs(xs - med))[len(xs) // 2]
+                scale[j] = 1.4826 * mad if mad > 0 else (float(np.std(xs)) or 1.0)
+            have = np.isfinite(F) & np.isfinite(q)[None, :] & np.isfinite(scale)[None, :]
+            shared = have.sum(axis=1)
+            with np.errstate(invalid="ignore", divide="ignore"):
+                z = np.where(have, (F - q[None, :]) / np.where(np.isfinite(scale), scale, 1.0)[None, :], 0.0)
+                d = np.sqrt((z ** 2).sum(axis=1) * nf / shared)
+            ok = shared * 2 >= nf
         idx = np.flatnonzero(ok)
         if len(idx) == 0:
             return empty
@@ -122,9 +150,14 @@ class MemoryIndex:
             return empty
         effective_n = float(w.sum() ** 2 / (w ** 2).sum())
         scores = {p: float(weighted[i] / weighted[0]) for i, p in enumerate(self.providers)}
+        Fk = F[order][use]
         neighbours = [{"series_id": self._names[Sk[i]], "origin": Ok[i], "distance": round(float(dk[i]), 4),
                        "weight": round(float(w[i]), 4),
-                       "best_provider": self.providers[int(np.argmin(Lk[i]))]} for i in range(len(w))]
+                       "best_provider": self.providers[int(np.argmin(Lk[i]))],
+                       "features": {n: float(Fk[i,j]) if np.isfinite(Fk[i,j]) else None for j,n in enumerate(names)},
+                       "losses": {p: float(Lk[i,j]) for j,p in enumerate(self.providers)},
+                       "baseline_loss_scale": float(sscale[i]),
+                       "normalized_losses": {p: float(Lk[i,j]/sscale[i]) for j,p in enumerate(self.providers)}} for i in range(len(w))]
         neighbours.sort(key=lambda x: -x["weight"])
         out = {"scores": scores, "effective_n": effective_n, "neighbours": neighbours}
         shrink, zc = memory.get("shrinkage", 0), memory.get("confidence_z", 0)

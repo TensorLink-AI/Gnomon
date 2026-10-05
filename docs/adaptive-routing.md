@@ -215,6 +215,53 @@ Extra features for `features` lists (computed over *L*): `autocorrelation` (lag 
 `short_window` blocks divided by their mean, clipped to 5) and `demand_interval`
 (log of observed values per nonzero value).
 
+### Experimental FASE-style memory
+
+The optional `distance: "fase"`, `profile: "fase"`, and `retention: "fase"` settings
+implement memory mechanisms described in [FASE](https://arxiv.org/html/2609.32689v1),
+with Gnomon's existing deterministic, Gaussian-weighted selector. This is not a full
+FASE reproduction: there is no learned MLP ranker or LLM controller.
+
+- Distance uses the bounded discrepancy `abs(a-b)/(std + abs(a-b))`, averaged within
+  the feature groups named in appendix E, then across observed groups. Standard
+  deviations use only active episodes. With zero standard deviation, equal values
+  contribute zero and unequal values one. No shared observations means no match.
+  Additional Gnomon features each form a group; caller context forms one extra group.
+- The profile contains 18 names prefixed with `fase:`. It computes the univariate
+  statistics from appendix E in pure Python, including exact-length spectra, quadratic
+  detrending and time-aligned historical covariate correlations. `long_window` defaults
+  to 15,360 and `k` to 10 for this profile; explicit settings override these defaults.
+  Undefined measurements are `None`. The mask covariate is excluded from correlations.
+  Operational conventions include every integer split in the middle 20–80%, population
+  standard deviations, and a nonzero detrended spectral peak as the periodicity candidate.
+- Retention requires `distance: "fase"` and no dedupe. It replaces the memory lookback
+  with a recent FIFO (default 100) and a long-term pool (default 900). Retrieval records
+  contributions from equation 2, partitioned by invoked provider and the complete set
+  of tied best providers. Receipts are applied only after the corresponding outcome
+  matures. Long-term admission replaces the lowest running-average contribution only
+  for a strictly higher value; unscored entries start at zero and ties keep incumbents.
+  Legacy episodes without receipts have no invented historical contribution.
+
+Live routing reconstructs retention from recorded decisions and visible outcomes;
+replay maintains equivalent incremental pools. This can require reading substantially
+more ledger history than the default lookback. NumPy remains optional and accelerates
+replay distances only; the feature implementation needs no numerical dependency.
+Install `gnomon-forecast[replay]` (or `.[replay]` from a checkout) to use acceleration.
+
+For controlled ablations, keep the existing window, neighbour count and own-series
+weight fixed while adding one mechanism at a time. Use `k: 10` and `own_weight: 1` for
+a closer match to the paper's retrieval settings, and report this change separately.
+Bounded distances limit individual-feature influence; they do not guarantee that
+additional context improves retrieval or forecast accuracy.
+
+Offline experiments can explicitly call `validate_policy(raw_policy, replay=True)`
+to admit up to 31 candidates plus a baseline. The default validation and live schema
+retain their eight-provider limit, matching ledger comparison capacity. The expanded
+crypto experiment in `experiments/crypto_broad/` uses this option to compare 20
+statistical and machine-learning configurations across separate indicator/horizon
+replays. Each task has its own memory pool; a future-window label is admitted only
+when the entire window has matured.
+
 ### Does memory earn its place?
 
 `memory_ablation(folds, policy, histories, warmup_origins=..., covariates=...)` replays the
@@ -448,9 +495,13 @@ memory features.
 
 ## Cost of routing
 
-Each routed call reads at most the evidence window per series (its own plus pool
-members), independent of how long the ledger has run: the ledger indexes forecasts by
+With default window retention, each routed call reads at most the evidence window
+per series (its own plus pool members), independent of how long the ledger has run: the ledger indexes forecasts by
 series, horizon and origin, and routing decisions by kind and series. Ledgers created
 before these indexes gain them the next time they are opened for writing. Per-call
 work grows with `recent_origins`, the number of providers, pool size and request
 history length.
+
+Experimental FASE retention is an exception: live calls reconstruct retained pools
+from historical ledger evidence, so reads can grow with ledger age. Benchmark its
+latency on your ledger before enabling it; offline replay uses incremental pools.

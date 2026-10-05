@@ -24,16 +24,18 @@ import json
 import math
 
 from .forecast_adapter import ForecastAdapterError
+from . import fase_memory
 
 FEATURES = ("volatility_ratio", "trend", "seasonality", "zero_share", "missing_share", "length_cycles",
             "level_shift", "cv", "covariate_share", "autocorrelation", "skewness", "vol_of_vol",
-            "demand_interval")
+            "demand_interval") + fase_memory.FEATURES
 DEFAULT_FEATURES = ["volatility_ratio", "trend", "seasonality", "zero_share", "missing_share", "length_cycles",
                     "level_shift", "cv"]
 # Feature sets that suit the kind of series. "levels" is the default set. For return-like
 # series (changes, log returns, P&L) level features such as cv are unstable; for
 # intermittent demand, the interval between nonzero values matters.
 PROFILES = {
+    "fase": list(fase_memory.FEATURES),
     "levels": DEFAULT_FEATURES,
     "returns": ["volatility_ratio", "level_shift", "trend", "autocorrelation", "skewness", "vol_of_vol"],
     "intermittent": ["zero_share", "demand_interval", "missing_share", "cv", "level_shift", "volatility_ratio"],
@@ -62,9 +64,16 @@ def validate_memory(memory):
         return None
     allowed = {"features", "short_window", "long_window", "season", "k", "min_effective_n", "own_weight",
                "recency_half_life_days", "mask_covariate", "future_covariate", "profile", "context",
-               "dedupe_seconds", "shrinkage", "confidence_z", "novelty_threshold", "diagnostics"}
+               "dedupe_seconds", "shrinkage", "confidence_z", "novelty_threshold", "diagnostics", "distance", "retention", "recent_capacity", "long_term_capacity"}
     if not isinstance(memory, dict) or set(memory) - allowed:
         raise ForecastAdapterError(f"memory allows only {sorted(allowed)}", details={"rejected_fields": ["memory"]})
+    for field, choices in (("distance", ("robust", "fase")), ("retention", ("window", "fase"))):
+        if memory.get(field, choices[0]) not in choices:
+            raise ForecastAdapterError(f"memory.{field} must be one of {choices}",
+                                       details={"rejected_fields": [f"memory.{field}"]})
+    if memory.get("retention") == "fase" and (memory.get("distance", "robust") != "fase" or memory.get("dedupe_seconds", 0)):
+        raise ForecastAdapterError("memory.retention=fase requires distance=fase and dedupe_seconds=0",
+                                   details={"rejected_fields": ["memory.retention"]})
     profile = memory.get("profile")
     if profile is not None:
         if profile not in PROFILES:
@@ -79,7 +88,7 @@ def validate_memory(memory):
         raise ForecastAdapterError(f"memory.features must be distinct names from {list(FEATURES)}",
                                    details={"rejected_fields": ["memory.features"]})
     short = _int(memory.get("short_window", 14), "short_window", 2)
-    long = _int(memory.get("long_window", 112), "long_window", 3)
+    long = _int(memory.get("long_window", 15360 if profile == "fase" else 112), "long_window", 3)
     if long <= short:
         raise ForecastAdapterError("memory.long_window must exceed short_window",
                                    details={"rejected_fields": ["memory.long_window"]})
@@ -108,7 +117,7 @@ def validate_memory(memory):
                                    details={"rejected_fields": ["memory.diagnostics"]})
     spec = {"features": list(features), "short_window": short, "long_window": long, "season": season,
             "mask_covariate": memory.get("mask_covariate"), "future_covariate": memory.get("future_covariate"),
-            "k": _int(memory.get("k", 32), "k", 1, 1000),
+            "k": _int(memory.get("k", 10 if profile == "fase" else 32), "k", 1, 1000),
             "min_effective_n": _num(memory.get("min_effective_n", 8), "min_effective_n", 1),
             "own_weight": _num(memory.get("own_weight", 1.0), "own_weight", 1),
             "recency_half_life_days": _num(memory.get("recency_half_life_days", 0), "recency_half_life_days", 0),
@@ -117,6 +126,9 @@ def validate_memory(memory):
             "shrinkage": _num(memory.get("shrinkage", 0), "shrinkage", 0),
             "confidence_z": _num(memory.get("confidence_z", 0), "confidence_z", 0),
             "novelty_threshold": threshold, "diagnostics": diagnostics}
+    spec.update(distance=memory.get("distance", "robust"), retention=memory.get("retention", "window"),
+                recent_capacity=_int(memory.get("recent_capacity", 100), "recent_capacity", 1, 10000),
+                long_term_capacity=_int(memory.get("long_term_capacity", 900), "long_term_capacity", 0, 10000))
     identity = {k: spec[k] for k in _SPEC_KEYS}
     if spec["context"]:  # only when used, so existing spec_ids (and recorded episodes) stay valid
         identity["context"] = spec["context"]
@@ -152,7 +164,7 @@ def compute_features(spec, history, timestamps=(), *, past_covariates=(), past_c
     Undefined (too little history, a flat window, an absent covariate) is recorded as None and
     excluded from distances, never imputed.
     """
-    values = [float(v) for v in history]
+    values = [float(v) if v is not None else float("nan") for v in history]
     n = len(values)
     short_n, long_n, season = spec["short_window"], spec["long_window"], spec["season"]
     mask = _column(past_covariates, past_covariate_names, spec.get("mask_covariate"))
@@ -209,6 +221,11 @@ def compute_features(spec, history, timestamps=(), *, past_covariates=(), past_c
         future = _column(future_covariates, future_covariate_names, spec.get("future_covariate"))
         if future:
             out["covariate_share"] = sum(1 for v in future if v != 0) / len(future)
+    if any(name in fase_memory.FEATURES for name in out):
+        computed = fase_memory.features(history, window=spec["long_window"], season=season, mask=mask,
+                                        covariates=past_covariates, covariate_names=past_covariate_names,
+                                        mask_name=spec.get("mask_covariate"))
+        out.update({name: computed[name] for name in out if name in computed})
     for name in spec.get("context", []):
         # The latest value of a named past covariate at the origin: caller-supplied state such
         # as a market-wide volatility, a promotion flag or a peer-group aggregate.
@@ -289,14 +306,14 @@ def _weighted_quantile(pairs, q):
     return pairs[-1][0]
 
 
-def _novelty(query, vectors, names, scales, k, reference_size=512, sample_size=32):
+def _novelty(query, vectors, names, scales, k, reference_size=512, sample_size=32, distance=_distance):
     """Median distance from the query to its k nearest episodes, divided by the same quantity
     for a deterministic sample of remembered episodes: about 1 for a familiar state, well above
     1 for a state unlike anything remembered. Both are measured against the same evenly spaced
     reference subset (at most `reference_size` episodes), so the cost stays bounded in long
     replays and the two distances are comparable."""
     def median_k(target, pool):
-        ds = sorted(d for d in (_distance(target, v, names, scales) for v in pool) if d is not None)[:k]
+        ds = sorted(d for d in (distance(target, v, names, scales) for v in pool) if d is not None)[:k]
         return ds[len(ds) // 2] if ds else None
     reference = vectors[::max(1, len(vectors) // reference_size)]
     own = median_k(query, reference)
@@ -309,7 +326,7 @@ def _novelty(query, vectors, names, scales, k, reference_size=512, sample_size=3
     return round(own / base, 4) if base > 0 else None
 
 
-def episodic_evidence(rows, policy, own_series, query, origin_time=None):
+def episodic_evidence(rows, policy, own_series, query, origin_time=None, *, retained_pool=None, accelerate=False):
     """Everything memory knows about this query.
 
     Always: scores, effective_n, neighbours (as `episodic_scores`). With memory options:
@@ -330,13 +347,32 @@ def episodic_evidence(rows, policy, own_series, query, origin_time=None):
     if not episodes or query is None:
         return empty
     names = feature_names(memory)
-    scales = _robust_scales([e["features"] for e in episodes], names)
-    scored = []
-    for e in episodes:
-        d = _distance(query, e["features"], names, scales)
-        if d is not None:
-            scored.append((d, e))
+    retention_info = {}
+    if memory.get("retention") == "fase":
+        retained = retained_pool
+        if retained is None:
+            retained = fase_memory.Pool(memory["recent_capacity"], memory["long_term_capacity"])
+            for row in sorted(episodes, key=lambda r: (r.get("completed_at", r["origin"]), r["origin"], r["series_id"])):
+                retained.complete(row)
+        episodes = retained.rows
+        retention_info = {"retention_pool": {"recent": len(retained.recent), "long_term": len(retained.long_term)}}
+    bounded = memory.get("distance") == "fase"
+    distance = fase_memory.distance if bounded else _distance
+    if accelerate and bounded:
+        from .episodic_memory_fast import bounded_distances
+        ds = bounded_distances([[e['features'].get(n) for n in names] for e in episodes],
+                               [query.get(n) for n in names], names)
+        scored = [(float(d), e) for d, e in zip(ds, episodes) if math.isfinite(d)]
+    else:
+        scales = (fase_memory.scales if bounded else _robust_scales)([e["features"] for e in episodes], names)
+        scored = []
+        for e in episodes:
+            d = distance(query, e["features"], names, scales)
+            if d is not None:
+                scored.append((d, e))
     scored.sort(key=lambda x: (x[0], x[1]["origin"], x[1]["series_id"]))
+    if retention_info:
+        retention_info["retention_receipt"] = retained.receipt(query, names, memory["k"], providers, scored=scored)
     nearest = _neighbours(scored, memory["k"], memory.get("dedupe_seconds", 0))
     if not nearest:
         return empty
@@ -377,7 +413,7 @@ def episodic_evidence(rows, policy, own_series, query, origin_time=None):
     effective_n = total ** 2 / sum(w * w for w in weights)
     scores = {p: weighted[p] / weighted[baseline] for p in providers}
     neighbours.sort(key=lambda x: -x["weight"])
-    out = {"scores": scores, "effective_n": effective_n, "neighbours": neighbours}
+    out = {"scores": scores, "effective_n": effective_n, "neighbours": neighbours, **retention_info}
     shrink, z = memory.get("shrinkage", 0), memory.get("confidence_z", 0)
     diagnostics = memory.get("diagnostics", False)
     if not (shrink or z or diagnostics or memory.get("novelty_threshold")):
@@ -398,7 +434,9 @@ def episodic_evidence(rows, policy, own_series, query, origin_time=None):
     if z:
         out["selection_scores"] = {p: (s if p == baseline else s + z * standard_errors[p]) for p, s in scores.items()}
     if diagnostics or memory.get("novelty_threshold"):
-        out["novelty"] = _novelty(query, [e["features"] for e in episodes], names, scales, memory["k"])
+        if accelerate and bounded:
+            scales = fase_memory.scales([e["features"] for e in episodes], names)
+        out["novelty"] = _novelty(query, [e["features"] for e in episodes], names, scales, memory["k"], distance=distance)
     if diagnostics:
         out["diagnostics"] = {
             "unshrunk_scores": {p: round(v, 6) for p, v in raw.items()},

@@ -247,3 +247,43 @@ def test_memory_ablation_reports_a_paired_verdict():
     assert set(result["switch_rate"]) == {"memory", "no_memory"}
     with pytest.raises(ForecastAdapterError):
         memory_ablation(folds, validate_policy({k: v for k, v in policy.items() if k != "memory"}), histories)
+
+
+def test_ablation_reports_only_the_matched_post_warmup_cohort():
+    folds, histories, raw = _memory_scenario()
+    policy = validate_policy(raw)
+    result = memory_ablation(folds, policy, histories, warmup_origins=20, n_boot=10)
+    memory = replay_router(folds, policy, histories, return_decisions=True, decision_losses=True)
+    plain = replay_router(folds, {**policy, 'memory': None}, histories, return_decisions=True, decision_losses=True)
+    cut = sorted({d['origin'] for d in memory['decisions']})[20]
+    for name, replay in [('memory', memory), ('no_memory', plain)]:
+        ds = [d for d in replay['decisions'] if d['origin'] >= cut]
+        assert result[name+'_score'] == pytest.approx(sum(d['served_loss'] for d in ds)/len(ds))
+    assert result['memory_score'] - result['no_memory_score'] == pytest.approx(result['mean_loss_difference'])
+    empty = memory_ablation(folds, policy, histories, warmup_origins=1000, n_boot=10)
+    assert empty['verdict'] == 'no_comparable_folds'
+    assert empty['memory_score'] is None
+    for kwargs in ({'warmup_origins':-1}, {'n_boot':0}):
+        with pytest.raises(ForecastAdapterError):
+            memory_ablation(folds, policy, histories, **kwargs)
+
+
+def test_accelerated_evidence_keeps_neighbour_details():
+    pytest.importorskip('numpy')
+    from gnomon.episodic_memory_fast import MemoryIndex
+    p = _policy()
+    rows = _rows(10)
+    index = MemoryIndex(p)
+    for r in rows:
+        index.add(r)
+    query = {'volatility_ratio':.1, 'level_shift':.7}
+    origin = (START + timedelta(days=11)).isoformat()
+    pure = episodic_evidence(rows, p, 's1', query, origin)
+    fast = index.evidence('s1', query, origin, START.isoformat())
+    assert fast['scores'] == pytest.approx(pure['scores'])
+    for a,b in zip(fast['neighbours'],pure['neighbours'],strict=True):
+        assert a.keys() == b.keys()
+        for key in ('series_id','origin','best_provider','features','losses'):
+            assert a[key] == b[key]
+        for key in ('weight','distance','baseline_loss_scale','normalized_losses'):
+            assert a[key] == pytest.approx(b[key])

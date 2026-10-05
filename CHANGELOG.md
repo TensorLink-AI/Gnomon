@@ -14,6 +14,13 @@
   connection recipes and registry metadata, and the `gnomon-forecast` launcher
   alias. Registry submission remains a separate publication step.
 
+- Add experimental FASE-inspired bounded distance, an 18-feature univariate
+  profile and recent/long-term retention with delayed distinctiveness receipts.
+  Existing policies remain unchanged. This adapts the paper's memory mechanisms;
+  it does not add its learned ranker or LLM controller. Live retention reconstructs
+  history and can be substantially more expensive than window-based memory.
+- Keep ablation scores, fixed-model comparators and switch rates on the same
+  matched post-warmup cohort; preserve neighbour evidence in accelerated replay.
 - Episodic memory options, all off by default (existing policies, spec ids and recorded
   episodes are unchanged): feature `profile` presets (`levels`, `returns`, `intermittent`)
   and four features (`autocorrelation`, `skewness`, `vol_of_vol`, `demand_interval`);
@@ -24,8 +31,7 @@
   `switch_penalty` adds hysteresis against the last served provider, live and in replay.
 - `memory_ablation()` replays a policy with and without memory and reports the paired
   difference, a bootstrap interval, switch rates and a verdict.
-  `replay_router(accelerate=True)` scores memory with numpy (optional; about 9x faster
-  on 10 series x 600 origins, same decisions); `decision_losses=True` adds per-decision losses.
+  `replay_router(accelerate=True)` scores memory with NumPy (optional; checked against the pure-Python path); `decision_losses=True` adds per-decision losses.
 - `trade-with-gnomon`: `scripts/leakage_check.py` (truncation causality check), and
   backtesting guidance on pre-registration, sealed holdouts, twins for every added layer,
   and carrying path-dependent state into live trading.

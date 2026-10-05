@@ -24,6 +24,7 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
+replay = ["numpy>=1.26"]
 parquet = ["pyarrow>=15"]
 excel = ["openpyxl>=3.1"]
 dev = ["build>=1.2", "pytest>=8", "jsonschema>=4", "pyyaml>=6.0", "ruff>=0.12,<1"]

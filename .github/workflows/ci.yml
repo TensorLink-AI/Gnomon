@@ -28,7 +28,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install test dependencies
-        run: python -m pip install --upgrade pip ".[dev]"
+        run: python -m pip install --upgrade pip ".[dev,replay]"
       - name: Check proven code-hygiene defects
         run: ruff check src/gnomon
       - name: Run production regressions
@@ -46,7 +46,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install harness test dependencies
-        run: python -m pip install --upgrade pip ".[dev]"
+        run: python -m pip install --upgrade pip ".[dev,replay]"
       - name: Check matched runner and scoring contracts
         run: pytest -q benchmarks/tests
 
@@ -60,7 +60,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install harness test dependencies
-        run: python -m pip install --upgrade pip ".[dev]"
+        run: python -m pip install --upgrade pip ".[dev,replay]"
       - name: Build the separate hash-locked software environment
         run: docker build --pull=false -t gnomon-bench-software:ci benchmarks/workflow/software
       - name: Build the isolated current Gnomon MCP service
