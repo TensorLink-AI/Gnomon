@@ -1,6 +1,6 @@
 # Targon staging deployment
 
-Recorded 2026-10-01. The dedicated `gnomon-shared-staging` CPU VM runs commit
+Initial deployment recorded 2026-10-01. The dedicated `gnomon-shared-staging` CPU VM initially ran commit
 `68c0f2c9912403f27c43be570b71a19ed59323a2`, tagged `gnomon-hosted:68c0f2c9`.
 The [sanitized deployment report](evidence/targon-staging.json) includes immutable
 image identity and acceptance evidence. Observed Targon rental cost is $0.12/hour.
@@ -77,3 +77,24 @@ recovery; they are not in evidence backups.
 For backups and recovery procedures, see [encrypted R2 backups](r2-backups.md).
 Before calling this release-ready, run sustained use checks. This proves a synthetic evidence handoff, not forecast quality or
 fully autonomous Hermes learning.
+
+## Validation diagnostics update — 2026-10-06
+
+Staging now runs `gnomon-hosted:56247bcf`. A verified R2 backup preceded the
+upgrade; the stopped previous application container is retained for rollback.
+The new image preserves action semantics and storage formats, lists missing
+required fields and allowed fields in validation errors, and explains the
+`snapshot.save` / `analysis.submit` contracts in MCP discovery. Clients should
+refresh discovery to see the description changes.
+
+The user-created synthetic decision `fa2d3678-0ae3-4043-a43b-c5f72ff15461`
+completed snapshot, analysis and Ditto export on the original deployed build.
+No dataset or configuration change was needed. A fresh pinned Hermes B process
+recalled memory `2506bf2b-546c-4946-a4e6-9a14bec2666c` after the upgrade and
+independently recomputed MAE 1. [Exact successful arguments and results](evidence/hermes-user-e2e.json)
+are recorded for reproducibility. These are retrospective synthetic evidence.
+
+All 16 focused transport/submission tests passed on rerun. The first run had one
+temporal revision assertion failure (MAE 3 versus expected 7); the isolated rerun
+and full rerun passed. The tests already account for host wall-clock adjustments;
+the intermittent failure was not attributed to the diagnostics change.

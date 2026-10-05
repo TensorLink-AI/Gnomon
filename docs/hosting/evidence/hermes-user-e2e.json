@@ -1,0 +1,54 @@
+{
+  "cutoffs": {
+    "source_as_of": "2026-10-05T23:36:29.277026+00:00",
+    "recorded_as_of": "2026-10-05T23:36:29.277026+00:00"
+  },
+  "snapshot_args": {
+    "action": "snapshot.save",
+    "decision_id": "fa2d3678-0ae3-4043-a43b-c5f72ff15461",
+    "source_as_of": "2026-10-05T23:36:29.277026+00:00",
+    "recorded_as_of": "2026-10-05T23:36:29.277026+00:00",
+    "idempotency_key": "operator-complete-hermes-e2e-snapshot-20261006"
+  },
+  "snapshot_id": "evidence_snapshot-2a7715e79f0dbb0cdc442ab1968688003ec69f3af831ae632d1961aec052dbf5",
+  "analysis_args": {
+    "action": "analysis.submit",
+    "snapshot_id": "evidence_snapshot-2a7715e79f0dbb0cdc442ab1968688003ec69f3af831ae632d1961aec052dbf5",
+    "method": "gnomon.point_error_metrics",
+    "method_version": "1",
+    "metrics": {
+      "n": 1,
+      "mae": 1.0,
+      "rmse": 1.0,
+      "bias": -1.0
+    },
+    "lesson": "Synthetic Hermes end-to-end acceptance: integration-test-hermes-e2e-20261002. Forecast 12, actual 13, locally recomputed MAE 1. Retrospective fixture; no BTC research or trading conclusion.",
+    "export_to_ditto": true,
+    "idempotency_key": "operator-complete-hermes-e2e-analysis-20261006"
+  },
+  "analysis_reference": {
+    "schema_version": "1",
+    "service_id": "service-02dddfc6e62a4ed28430c6e7b1886c1d",
+    "project_id": "project-f0be3f0b25ee41af9b9d32ddc995a7a6",
+    "ledger_id": "ledger-6244b4c5b6d64c32b57a5a53744d0f17",
+    "resource_type": "client_analysis",
+    "resource_id": "client_analysis-f3807ef31469ace7d1f682b15ad5b04ba6bc755b0442ac8d3e0aad7d7250a8e9"
+  },
+  "export_id": "export-d16c1dec7f0141f28533b490b70008f2",
+  "delivery": {
+    "schema_version": "1",
+    "status": "ok",
+    "export_id": "export-d16c1dec7f0141f28533b490b70008f2",
+    "state": "acknowledged",
+    "memory_id": "2506bf2b-546c-4946-a4e6-9a14bec2666c"
+  },
+  "validation": {
+    "snapshot_save": "passed on original deployed build",
+    "analysis_submit": "passed on original deployed build",
+    "independent_mae": 1,
+    "fresh_hermes_b_recall": "passed after diagnostics upgrade",
+    "memory_id": "2506bf2b-546c-4946-a4e6-9a14bec2666c",
+    "diagnostics_commit": "56247bcf",
+    "focused_tests_passed": 16
+  }
+}
