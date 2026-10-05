@@ -1,5 +1,8 @@
 # Changes from the 1.1.7 acceptance feedback
 
+> Development/acceptance record. For current usage and agent entry points, see
+> the [documentation index](README.md). Dated checkpoints are not live configuration.
+
 CSV ingestion may assume source availability from valid timestamps while still
 recording real ingestion timestamps. Evaluation, routing and rescoring now use
 recording-time metadata independently of that source assumption. A regression

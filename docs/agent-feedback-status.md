@@ -1,5 +1,8 @@
 # Agent feedback disposition
 
+> Development/acceptance record. For current usage and agent entry points, see
+> the [documentation index](README.md). Dated checkpoints are not live configuration.
+
 Reviewed against the working tree on 2026-09-09. This tracks the supplied
 acceptance feedback; it is not a claim that every reported case was independently
 reproduced. The implementation is included in the 1.1.6 release changes.

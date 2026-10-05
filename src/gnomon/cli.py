@@ -88,6 +88,8 @@ def build_parser() -> argparse.ArgumentParser:
     actions.add_argument("--install-hermes-skill", action="store_true", help="Install optional native Hermes secure-setup skills; does not read credentials")
     connect.add_argument("--replace", action="store_true", help="Explicitly replace the saved key")
     caps = commands.add_parser("capabilities", help="List registered providers and enabled tools")
+    from .discovery import TASKS
+    caps.add_argument("--task", choices=list(TASKS), help="Show task availability, setup requirements and an example call")
     caps.add_argument("--output", choices=("json",), default="json")
     caps.add_argument("--providers-config", help=_CONFIG_HELP)
     caps.add_argument("--config-schema", action="store_true", help="Describe operator TOML configuration keys without loading providers")
@@ -362,7 +364,7 @@ def _execute(session, args):
                     if args.provider else {p: session.engine.cache_policy(p) for p in session.engine.capabilities()}}
         if args.provider or args.request:
             raise _UsageError('--provider and --request require --cache.', 'gnomon capabilities')
-        return session.capabilities(brief=args.brief)
+        return session.capabilities(brief=args.brief, task=args.task)
     if args.command in ("inspect", "describe"):
         data = _inspect(session, args)
         if args.command == "inspect":
@@ -500,6 +502,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps({'schema_version': '1', 'status': 'ok', 'python': source,
                               'run': 'python -m gnomon.examples.custom_provider'}))
             return 0
+        if getattr(args, 'task', None) and any(getattr(args, k, False) for k in ('cache', 'provider', 'request', 'config_schema', 'show_resolved_config')):
+            raise _UsageError('--task cannot be combined with cache/configuration inspection flags.', 'gnomon capabilities')
         if getattr(args, 'show_resolved_config', False):
             if args.cache or args.provider or args.request or args.config_schema:
                 raise _UsageError('--show-resolved-config cannot be combined with cache/schema request flags.', 'gnomon capabilities')

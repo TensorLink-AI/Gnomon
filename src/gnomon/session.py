@@ -44,7 +44,10 @@ def _measured(method):
         except (GnomonError, ForecastAdapterError) as exc:
             exc.details['execution_diagnostics'] = self._execution_delta(before)
             raise
-        return {**result, 'execution_diagnostics': self._execution_delta(before)}
+        from .agent_summary import attach_summary
+        result = {**result, 'execution_diagnostics': self._execution_delta(before)}
+        return attach_summary(result, method.__name__, ledger=self.ledger is not None,
+                              outcome_writes=self.allow_outcome_writes)
     return invoke
 
 
@@ -547,14 +550,18 @@ class GnomonSession:
             raise ForecastAdapterError("provider kind must be ephemeris, callable or factory")
 
     @_measured
-    def capabilities(self, *, brief: bool = True) -> dict:
+    def capabilities(self, *, brief: bool = True, task: str | None = None) -> dict:
         if type(brief) is not bool:
             raise ForecastAdapterError('brief must be a boolean')
+        if task is not None:
+            from .discovery import describe_task
+            return describe_task(self, task)
         if brief:
             from .diagnostics import shared_provider_schemas
             return shared_provider_schemas(self.capabilities(brief=False))
         from .diagnostics import CUTOFF_SEMANTICS
         from .onboarding import connection_info
+        from .discovery import DESCRIPTION, task_index
         providers = self.engine.capabilities()
         for provider in providers.values():
             provider["request_schema"] = provider_request_schema(provider["capabilities"])
@@ -563,6 +570,8 @@ class GnomonSession:
                 "product_contract": product_claims(),
                 "onboarding": {"ephemeris": connection_info(self._ephemeris_providers, catalog=getattr(self, '_ephemeris_catalog', None))},
                 "interfaces": {"python": True, "cli": True, "mcp": True},
+                "description": DESCRIPTION, "tasks": task_index(self),
+                "task_help": {"tool": "gnomon_capabilities", "arguments": {"task": "forecast"}},
                 "memory": {"auto_recall": self.memory_config.get("auto_recall", False),
                            "read_only": True, "schema_command": "gnomon memory --schema"},
                 "operation_interfaces": {"memory": {"cli": True, "python": True, "mcp": self.ledger is not None},
@@ -732,7 +741,7 @@ class GnomonSession:
             error.details['execution_diagnostics'] = self._execution_delta(before)
             raise error from None
         result['execution_diagnostics'] = self._execution_delta(before)
-        if compact and name == 'gnomon_capabilities' and 'schema' not in result:
+        if compact and name == 'gnomon_capabilities' and 'schema' not in result and 'task' not in result:
             result.pop('cutoff_semantics', None)
             result['cutoff_semantics_command'] = 'gnomon capabilities'
             # Keep compact discovery within one response: drop what `build` already states
@@ -772,6 +781,9 @@ class GnomonSession:
         if name != 'gnomon_read':
             from .diagnostics import completion
             result = completion(result)
+            from .agent_summary import attach_summary
+            result = attach_summary(result, name.removeprefix('gnomon_'),
+                                    ledger=self.ledger is not None, outcome_writes=self.allow_outcome_writes)
         return self.results.project(result) if compact else result
 
     def _execution_counts(self):
@@ -801,7 +813,9 @@ class GnomonSession:
                 except (ValueError, TypeError) as exc:
                     raise GnomonError("INVALID_ARGUMENTS", str(exc), details=temporal_recovery(arguments)) from None
             if name == "gnomon_capabilities":
-                _strict(arguments, ('brief', 'schema_tool', 'schema_variant'))
+                _strict(arguments, ('brief', 'schema_tool', 'schema_variant', 'task'))
+                if 'task' in arguments and any(k in arguments for k in ('schema_tool', 'schema_variant')):
+                    raise ForecastAdapterError('Use task or schema_tool/schema_variant, not both')
                 if 'schema_tool' in arguments:
                     from .tool_schemas import describe_schema
                     return describe_schema(self.tools(portable=False), arguments['schema_tool'], arguments.get('schema_variant'))
@@ -1011,11 +1025,12 @@ class GnomonSession:
         return answer
 
     def tools(self, *, portable=True) -> list[dict]:
+        from .discovery import TASKS
         tools = [
             {"name": "gnomon_read", "description": "Read exact retained result JSON text pages, optionally at a JSON pointer. Concatenate pages at next_offset; no provider calls. References expire with the session or LRU eviction.",
              "inputSchema": READ_SCHEMA},
-            {"name": "gnomon_capabilities", "description": "List registered providers, storage capabilities, and optional Ephemeris signup/connection guidance, or retrieve exact tool/operation schemas with schema_tool and schema_variant. Offer signup at most once; never request credentials through MCP.",
-             "inputSchema": {"type": "object", "properties": {"schema_tool": {"type": "string", "description": "Retrieve the exact schema of an exposed tool, without executing it."},
+            {"name": "gnomon_capabilities", "description": "Discover forecasting tasks and setup with task, registered providers and optional Ephemeris connection guidance, or exact schemas with schema_tool/schema_variant. Offer signup at most once; never request credentials through MCP.",
+             "inputSchema": {"type": "object", "properties": {"task": {"type": "string", "enum": list(TASKS)}, "schema_tool": {"type": "string", "description": "Retrieve the exact schema of an exposed tool, without executing it."},
                 "schema_variant": {"type": "string", "description": "Operation name or variant ID from schema discovery."}, 'brief': {'type': 'boolean', 'default': True,
                 'description': 'Deduplicate provider request schemas using shared JSON references.'}}, "additionalProperties": False}},
             {"name": "gnomon_forecast", "description": "Execute a registered provider. Preserve completion as typed evidence; final_selection shows the provider/execution_id selection to return. No implicit backtest, calibration claim or action permission.",

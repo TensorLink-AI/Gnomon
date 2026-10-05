@@ -1,5 +1,8 @@
 # Delivery checkpoint — iteration 29
 
+> Development/acceptance record. For current usage and agent entry points, see
+> the [documentation index](../README.md). Dated checkpoints are not live configuration.
+
 Updated 2026-09-07 on `codex/v1.0.0-clean-surface`, based on merged `main`
 commit `3d2835f`.
 

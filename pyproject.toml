@@ -5,13 +5,13 @@ build-backend = "hatchling.build"
 [project]
 name = "gnomon-forecast"
 dynamic = ["version"]
-description = "Provider-neutral time-series execution and temporal evidence for agents"
+description = "Inspect time series, forecast with your models, compare forecasts, and review observed outcomes."
 readme = "README.md"
 requires-python = ">=3.11"
 license = {file = "LICENSE"}
 authors = [{name = "Cascade"}]
 dependencies = []
-keywords = ["time-series", "forecasting", "agents", "mcp", "temporal-reasoning"]
+keywords = ["time-series", "forecasting", "agents", "mcp", "backtesting", "model-comparison", "mcp-server", "temporal-reasoning"]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Developers",
@@ -31,6 +31,7 @@ dev = ["build>=1.2", "pytest>=8", "jsonschema>=4", "pyyaml>=6.0", "ruff>=0.12,<1
 
 [project.scripts]
 gnomon = "gnomon.cli:main"
+gnomon-forecast = "gnomon.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/TensorLink-AI/Gnomon"
@@ -73,6 +74,10 @@ include = [
   "/skills/route-with-gnomon",
   "/integrations/hermes/gnomon-memory",
   "/README.md",
+  "/llms.txt",
+  "/server.json",
+  "/integrations/mcp",
+  "/scripts/prepare_discovery.py",
   "/LICENSE",
   "/CHANGELOG.md",
   "/pyproject.toml",

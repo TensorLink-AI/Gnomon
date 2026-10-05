@@ -1,0 +1,38 @@
+# Gnomon
+
+> Inspect time series, forecast with your models, compare forecasts, and review observed outcomes.
+
+Gnomon is the `gnomon-forecast` Python distribution, imported as `gnomon`, with Python, CLI and stdio MCP interfaces. Three local reference baselines work without credentials. Custom models, remote services and a ledger are optional. This index describes the source checkout; installed capabilities and schemas are authoritative for that installation.
+
+Start with the task, not every document. Use `gnomon capabilities --task forecast` or the `gnomon_capabilities` tool with `{"task":"forecast"}` for availability, a call template and exact schema discovery. Other tasks: inspect, describe, compare, route, review, recall, submit_actuals, temporal. Availability describes configuration, not statistical evidence or permission to spend.
+
+## Start here
+
+- [Main agent workflow](https://github.com/TensorLink-AI/Gnomon/blob/main/skills/use-gnomon/SKILL.md): inspect, recall relevant evidence, forecast or compare, and review observed outcomes.
+- [Install and verify](https://github.com/TensorLink-AI/Gnomon/blob/main/docs/installation.md): use the same Python environment as local models; check the installed build.
+- [Connect over MCP](https://github.com/TensorLink-AI/Gnomon/blob/main/docs/quickstart-mcp.md): stdio setup and an offline first call.
+- [MCP configurations](https://github.com/TensorLink-AI/Gnomon/blob/main/integrations/mcp/README.md): installed and package-launch recipes, with release prerequisites.
+- [Response overview and schemas](https://github.com/TensorLink-AI/Gnomon/blob/main/docs/agent-operations.md): agent_summary, exact schema calls, bounded reads and follow-ups.
+
+- [Packaged skills](https://github.com/TensorLink-AI/Gnomon/blob/main/docs/agent-skill.md): all nine workflows, including secure connection, forecast reports and token monitoring.
+
+## Choose a workflow
+
+- [Python forecasting](https://github.com/TensorLink-AI/Gnomon/blob/main/skills/forecast-with-gnomon/SKILL.md): custom providers and validated output files.
+- [Model comparisons](https://github.com/TensorLink-AI/Gnomon/blob/main/docs/local-evidence-workflow.md): local inspect/evaluate/route/score example.
+- [Ledger and outcomes](https://github.com/TensorLink-AI/Gnomon/blob/main/skills/use-gnomon-ledger/SKILL.md): matched evidence, pending/partial/complete scoring and lessons.
+- [Adaptive routing](https://github.com/TensorLink-AI/Gnomon/blob/main/docs/adaptive-routing.md): configure model selection using matured forecast outcomes.
+- [Trading workflow](https://github.com/TensorLink-AI/Gnomon/blob/main/skills/trade-with-gnomon/SKILL.md): separate forecast evidence from trade execution and net results.
+- [Ephemeris setup](https://github.com/TensorLink-AI/Gnomon/blob/main/skills/setup-gnomon-ephemeris/SKILL.md): optional remote connector configuration.
+
+## Reference
+
+- [All guides](https://github.com/TensorLink-AI/Gnomon/blob/main/docs/README.md): task-based documentation directory.
+- [CLI and schema reference](https://github.com/TensorLink-AI/Gnomon/blob/main/docs/cli-reference.md): installed commands and argument discovery.
+- [Data and time semantics](https://github.com/TensorLink-AI/Gnomon/blob/main/docs/data-format.md): units, targets, snapshots and availability cutoffs.
+- [Validation limits](https://github.com/TensorLink-AI/Gnomon/blob/main/docs/agent-evaluation.md): execution checks do not establish forecast superiority or calibrated uncertainty.
+
+## Optional
+
+- [Memory integration](https://github.com/TensorLink-AI/Gnomon/blob/main/docs/memory-bridge.md): recall verifiable evidence without treating narrative as fact.
+- [Registry publication](https://github.com/TensorLink-AI/Gnomon/blob/main/docs/discovery-and-listings.md): prepared metadata, ownership and release requirements.

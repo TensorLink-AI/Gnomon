@@ -1,6 +1,18 @@
 # Changelog
 
-## Unreleased
+## 1.4.0 — 2026-10-05
+
+- Add task discovery through Python, CLI and MCP: see configured availability,
+  setup requirements, exact schemas and example calls before executing a task.
+- Add a common `agent_summary` to session results with scope, evidence,
+  limitations and explicit follow-up templates. Large summaries stay readable
+  through retained results without repeating inference or writes.
+- Expose per-neighbour features and provider losses in episodic-memory evidence;
+  allow up to 32 providers in offline policy validation while preserving live
+  routing's eight-provider limit and existing selection defaults.
+- Reorganize agent documentation around tasks; add `llms.txt`, versioned MCP
+  connection recipes and registry metadata, and the `gnomon-forecast` launcher
+  alias. Registry submission remains a separate publication step.
 
 - `trade-with-gnomon` leads with its essence (forecast, record before any order, score
   against outcomes, promote only on evidence and approval) and with volatility: a

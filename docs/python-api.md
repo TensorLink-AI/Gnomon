@@ -37,6 +37,17 @@ with defaults, supported features and declared history/horizon/frequency limits.
 Value-dependent requirements, such as history length being at least `season`
 for seasonal naive, are described and checked at execution.
 
+Session forecasts also return `agent_summary`: scope, result, basis, limitations,
+references and follow-ups. Keep `forecast["result"]["point"]` and `completion` as
+the actual forecast evidence. For large tool responses, follow `agent_summary_read`
+or `full_result` through `session.call("gnomon_read", arguments)` instead of
+rerunning inference. See [response semantics](agent-operations.md#common-result-overview).
+Low-level `InferenceEngine` and ledger methods retain their native return types.
+
+For a file-to-forecast example and output validation, use the
+[Python forecasting skill](../skills/forecast-with-gnomon/SKILL.md). For later
+actuals, scoring and lessons, use the [ledger skill](../skills/use-gnomon-ledger/SKILL.md).
+
 `InferenceEngine()` and a bare `GnomonSession()` start with an empty registry.
 Use an engine when your application explicitly registers its own providers.
 Engine forecasts also accept dictionaries, including mixed typed/dict batches.
@@ -98,7 +109,8 @@ neither turns a forecast or recorded decision into permission to act.
 
 Adaptive routing (`gnomon.adaptive_router`): pass `routers={"name": policy}` to
 `GnomonSession` (or `[routers."name"]` in TOML) and forecast with the router's name.
-`validate_policy(policy)` normalises and checks a policy; `replay_router(folds, policy,
+`validate_policy(policy)` normalises and checks a live policy (up to eight providers);
+`validate_policy(policy, replay=True)` permits up to 32 providers for offline replay; `replay_router(folds, policy,
 histories=None, *, return_decisions=False, covariates=None)` replays the same selection
 offline. Episodic-memory features come from `gnomon.episodic_memory.compute_features`
 (also used by replay), and `episodic_scores` performs the retrieval. See

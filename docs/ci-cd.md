@@ -33,6 +33,8 @@ be overwritten; use a new version for corrections.
 
 1. Review the PR and documented limitations.
 2. Verify production/harness tests, a fresh wheel and clean installed examples.
+   Run `python scripts/prepare_discovery.py --check` to verify versioned listing
+   metadata and connection recipes; see [discovery publication](discovery-and-listings.md).
 3. Push the exact version tag only with explicit release authorization.
 4. Wait for build, publisher and any environment approval.
 5. Verify the version and file hashes on PyPI and install that exact version.

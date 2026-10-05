@@ -8,6 +8,12 @@ gnomon infer --provider last_value --request '{"history":[10,12,11],"horizon":2}
 
 The result repeats 11 twice. This is an offline baseline, not an accuracy claim.
 
+Read `agent_summary` for the task scope, result and supporting evidence; the full
+forecast remains in `result.point`. Agents using connected tools can start with
+the [main workflow](../skills/use-gnomon/SKILL.md); Python scripts can use the
+[Python skill](../skills/forecast-with-gnomon/SKILL.md). Evaluation and a ledger
+are optional additions when the task needs comparison or later outcome review.
+
 From a source checkout, the bundled example has timestamp and requests columns:
 
 ```bash
@@ -67,6 +73,11 @@ gnomon infer --providers-config providers.toml --provider last_value \
 Copy the returned `execution_id`. Append an actual with the same `series_id`,
 unit and forecast timestamp, then score that execution:
 
+These are synthetic historical values to demonstrate the contract. For real
+work, submit only observed actuals. The returned `agent_summary.followups` also
+provides these operations with known arguments filled in and remaining inputs
+listed under `requires`; it does not execute or schedule them.
+
 ```bash
 gnomon ledger --providers-config providers.toml \
   --arguments '{"operation":"append_actual","series_id":"sales","unit":"requests","valid_time":"2025-01-04T00:00:00+00:00","source_available_at":"2025-01-05T00:00:00+00:00","value":13}'
@@ -77,3 +88,7 @@ gnomon ledger --providers-config providers.toml \
 All ledger timestamps require an explicit timezone. An actual only scores a
 forecast step when its `series_id`, unit and `valid_time` exactly match the
 forecast request's identity, unit and one of its `future_timestamps`.
+For a reproducible review, supply explicit `source_as_of` and `recorded_as_of`
+to `evaluate`; omitting them in this simple example selects unbounded evidence.
+Inspect `scoring_status` and coverage: a successful call may still have pending
+or partial outcomes. See [scoring and recovery](scoring-and-recovery.md).

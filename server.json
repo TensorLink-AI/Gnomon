@@ -1,0 +1,34 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.TensorLink-AI/gnomon",
+  "title": "Gnomon",
+  "description": "Inspect time series, forecast with your models, compare forecasts, and review observed outcomes.",
+  "version": "1.4.0",
+  "repository": {
+    "url": "https://github.com/TensorLink-AI/Gnomon",
+    "source": "github"
+  },
+  "websiteUrl": "https://github.com/TensorLink-AI/Gnomon/tree/main/docs",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "gnomon-forecast",
+      "version": "1.4.0",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        },
+        {
+          "type": "positional",
+          "value": "serve"
+        }
+      ]
+    }
+  ]
+}

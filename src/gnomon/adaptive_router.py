@@ -106,16 +106,17 @@ def _integer(value, field, minimum, maximum=None):
     return value
 
 
-def validate_policy(policy: dict) -> dict:
-    """Return a normalised router policy with defaults, or raise with the rejected field."""
+def validate_policy(policy: dict, *, replay: bool = False) -> dict:
+    """Normalise a policy; offline replay permits 32 providers, live routing eight."""
     if not isinstance(policy, dict):
         raise ForecastAdapterError("router policy must be an object")
     unknown = set(policy) - set(ROUTER_SCHEMA["properties"])
     if unknown:
         raise ForecastAdapterError(f"unknown router fields: {sorted(unknown)}", details={"rejected_fields": sorted(unknown)})
     candidates, baseline = policy.get("candidates"), policy.get("baseline")
-    if not isinstance(candidates, list) or not 1 <= len(candidates) <= 7 or not isinstance(baseline, str) or not baseline:
-        raise ForecastAdapterError("router requires 1-7 candidates and an explicit baseline",
+    max_candidates = 31 if replay else 7
+    if not isinstance(candidates, list) or not 1 <= len(candidates) <= max_candidates or not isinstance(baseline, str) or not baseline:
+        raise ForecastAdapterError(f"router requires 1-{max_candidates} candidates and an explicit baseline",
                                    details={"rejected_fields": ["candidates", "baseline"]})
     providers = [baseline, *candidates]
     if any(not isinstance(p, str) or not p for p in providers) or len(set(providers)) != len(providers):

@@ -223,7 +223,11 @@ def episodic_scores(rows, policy, own_series, query, origin_time=None):
             weighted[p] += w * e["losses"][p] / scale
         weights.append(w)
         neighbours.append({"series_id": e["series_id"], "origin": e["origin"], "distance": round(d, 4),
-                           "weight": round(w, 4), "best_provider": min(providers, key=lambda p: e["losses"][p])})
+                           "weight": round(w, 4), "best_provider": min(providers, key=lambda p: e["losses"][p]),
+                           "features": {name: e["features"].get(name) for name in names},
+                           "losses": {p: e["losses"][p] for p in providers},
+                           "baseline_loss_scale": scale,
+                           "normalized_losses": {p: e["losses"][p] / scale for p in providers}})
     total = sum(weights)
     if total <= 0 or weighted[baseline] <= 0:
         return {}, 0.0, []

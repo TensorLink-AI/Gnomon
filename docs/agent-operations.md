@@ -1,5 +1,62 @@
 # Agent operation discovery
 
+For a task-specific starting point, use `gnomon_capabilities` with
+`{"task":"forecast"}` (or `gnomon capabilities --task forecast`).
+The ordinary response lists `tasks`; a task reply includes configuration
+requirements, exact schema discovery and a call template with missing inputs.
+See [task discovery](discovery-and-listings.md#installed-task-discovery).
+
+For the main task workflow, use the [agent guide](../skills/use-gnomon/SKILL.md):
+inspect what is needed, recall relevant evidence when configured, forecast or
+compare within the task's budget, then review observed outcomes. The same tools
+serve simple calculations and ongoing forecasting; neither a ledger nor evaluation
+is required for every task.
+
+## Common result overview
+
+Session operation responses add `agent_summary` (schema version `1`) without
+replacing their detailed fields. Python `session.call`, CLI and MCP share this
+presentation; direct session forecasting, evaluation and routing also include it.
+Discovery, `gnomon_read` and standalone temporal utilities retain their existing contracts. Low-level engine,
+data-reference and ledger APIs retain their native results.
+
+| Field | Meaning |
+| --- | --- |
+| `operation` | The operation actually performed; advisory routing is distinct from forecasting. |
+| `status` | Native operation status, with scoring/evidence completeness when applicable. |
+| `scope` | Known series, units, target, horizon, windows and cutoffs; absent information is not inferred. |
+| `result` | Task-specific answer and JSON pointers to larger arrays or tables. |
+| `basis` | Recorded method, selection reason, comparison policy and evidence coverage as applicable. |
+| `limitations` | Interpretation limits supported by the result, including incomplete scoring. |
+| `references` | Existing execution, study, snapshot and routing decision identities. |
+| `followups` | Existing tool calls, prefilled arguments, missing `requires` fields and `effect`. |
+
+Summaries are generated from structured results, without provider calls or ledger
+reads/writes. They do not create confidence estimates or validate agent-written
+explanations. Forecast points are inlined only for horizons up to eight steps;
+larger arrays remain at `result.point_pointer`. Series and comparison lists show
+up to four entries with explicit omitted counts. Ranking policy retains ties;
+being first in display order does not establish superiority.
+
+JSON pointers refer to the full response. If a result is projected, an inline
+overview's `agent_summary_pointer_root` identifies the retained result. If the
+overview cannot fit, `agent_summary_read` supplies the exact `gnomon_read` call.
+Follow text-page `next_offset` until null before parsing a separately read summary.
+Retention is session-local; durable forecast/study identities remain the ledger's
+responsibility. Reads never rerun the provider.
+
+For recorded scoreable forecasts, follow-ups identify the execution and provide
+an outcome-scoring template. Actual-submission templates appear only when outcome
+writes are enabled. Missing actual values, availability times and review cutoffs
+are never fabricated. `effect: ledger_write` includes scoring, which can save an
+evaluation; `read` does not. No follow-up executes automatically or schedules work.
+The host supplies observed actuals and triggers review under the task's authority.
+
+Outcome summaries distinguish pending, partial and complete scoring and preserve
+saved versus current coverage separately. A complete technical operation can
+still have partial evidence. They do not claim that recorded lessons improve
+future forecasts.
+
 Use `gnomon schemas` for the schema index. `gnomon forecast` and `gnomon infer`
 are aliases. `--input` forecasts require a provider and horizon; routing from
 input requires a study plus source and recording cutoffs.
