@@ -22,8 +22,19 @@ MUTATIONS = {'record_decision_summary', 'record_lesson', 'evaluate', 'append_act
 
 
 def strict(arguments, allowed, required=()):
-    if not isinstance(arguments, dict) or set(arguments) - set(allowed) or not set(required) <= set(arguments):
-        raise ServiceError('INVALID_ARGUMENTS', 'Missing or unsupported arguments.')
+    if not isinstance(arguments, dict):
+        raise ServiceError('INVALID_ARGUMENTS', 'Arguments must be an object.')
+    missing = sorted(set(required) - set(arguments))
+    unsupported = set(arguments) - set(allowed)
+    if missing or unsupported:
+        # List server-defined field names, never caller values or arbitrary keys.
+        details = []
+        if missing:
+            details.append('Missing required fields: ' + ', '.join(missing) + '.')
+        if unsupported:
+            details.append('Unsupported fields supplied. Allowed fields for this operation: '
+                           + ', '.join(sorted(allowed)) + '.')
+        raise ServiceError('INVALID_ARGUMENTS', ' '.join(details))
 
 
 def instant(value):
