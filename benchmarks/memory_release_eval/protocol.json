@@ -1,0 +1,30 @@
+{
+  "purpose": "Re-evaluate existing memory-v2 and FASE code against the pre-integration 1.4.0 behavior on saved evaluation forecasts",
+  "scope": "Regression comparison on previously inspected data, not a new holdout or paper reproduction",
+  "tasks": [
+    "rv_1d",
+    "rv_3d",
+    "rv_7d",
+    "rv_14d",
+    "downside_7d",
+    "range_1d",
+    "alpha",
+    "favorita"
+  ],
+  "arms": [
+    "current",
+    "v2_profile",
+    "bounded",
+    "fase",
+    "no_memory"
+  ],
+  "v2_profile": "returns for alpha; intermittent for Favorita; levels for crypto indicators (identical to current defaults)",
+  "bounded": "Change distance only; preserve features, window, k, own weighting and selector",
+  "fase": "FASE 18-feature profile plus bounded distance and 100/900 retention; preserve explicit window, k, own weighting and selector",
+  "selection_rules": "No shrinkage, confidence penalty, novelty abstention or switch penalty is enabled",
+  "models_and_targets": "Original saved forecasts, original series, origins, maturity times, warmup cutoffs and metrics; no refits or paid calls",
+  "inference": "Paired 95% circular-block bootstrap across all series together: 28 origins for alpha/crypto, 112 for Favorita; 2000 draws, seed 0. Favorita also paired series bootstrap. Exploratory, no multiplicity adjustment.",
+  "promotion": "Do not change live defaults or choose per-task winning settings from these results",
+  "baseline": "b741aa68bd86d534753ba3b8e5788d720c8c3543; verify current replay against saved original results and independent old-code retrieval samples",
+  "no_memory": "Additional descriptive control included after the run began; disables memory only, preserves pooling and all other settings. No candidate tuning."
+}

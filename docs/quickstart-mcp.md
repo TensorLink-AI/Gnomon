@@ -1,5 +1,9 @@
 # Connect an agent
 
+For copyable host configurations, see [client recipes](../integrations/mcp/README.md).
+Use `gnomon_capabilities` with `{"task":"forecast"}` for a task-specific
+example and setup requirements on supported builds.
+
 Install Gnomon in the environment your host will execute, then configure the host
 to run `gnomon mcp serve` over stdio. No HTTP server is required.
 
@@ -7,10 +11,39 @@ to run `gnomon mcp serve` over stdio. No HTTP server is required.
 {"command":"gnomon","args":["mcp","serve","--providers-config","/absolute/path/providers.toml"]}
 ```
 
-Omit the configuration argument for the three offline baselines.
+Omit the configuration argument for the three offline baselines and any optional
+saved Ephemeris connection. With no saved connection, startup needs no credentials.
+Use an explicit operator configuration when you need a fixed provider set.
 The default session exposes inspect, describe, capabilities, forecast, evaluate
 and read. A ledger adds ledger, route and memory; `enable_temporal=true` adds temporal.
 All interfaces use the same execution contract.
+
+## First agent call
+
+Have the host discover `tools/list`, then use the [main agent skill](../skills/use-gnomon/SKILL.md).
+The following is a tool-call description for the host, not a raw JSON-RPC message:
+
+```json
+{"name":"gnomon_forecast","arguments":{"provider":"last_value","request":{"history":[10,12,11],"horizon":2}}}
+```
+
+It returns two points of 11. Read `agent_summary` for the scope, method and
+limitations, and `result.point` for the full forecast. If the response supplies
+`agent_summary_read`, execute that read call instead. No model comparison or
+forecast-accuracy claim is implied. This smoke call needs no remote service.
+
+For file data, inspect it once and reuse its `data_ref` in the same session.
+For unknown models, call `gnomon_capabilities` before forecasting. See the
+[complete stdio example](mcp-evidence-workflow.md) for raw protocol messages,
+initialization and pagination.
+
+## Results and follow-ups
+
+The [common overview](agent-operations.md#common-result-overview) keeps the result
+separate from its supporting evidence. Recorded forecasts include outcome
+follow-ups when their identity and target timestamps permit scoring. Supply
+missing `requires` fields from the task and observed actuals; the host controls
+when these calls run. Tool availability does not enable write permissions.
 
 Retain each forecast's `completion` object and use `final_selection` for its
 canonical final JSON selection. The host can resolve prose finals against

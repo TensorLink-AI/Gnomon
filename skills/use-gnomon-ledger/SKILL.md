@@ -10,6 +10,21 @@ task. A one-off calculation does not need a new persistent ledger. The host's
 ordinary memory remains useful for project context and reminders; query Gnomon
 for numerical evidence before relying on an earlier conclusion.
 
+This is the outcome-review and retained-evidence part of the
+[main workflow](../use-gnomon/SKILL.md). Session/CLI/MCP responses include
+`agent_summary`, or an `agent_summary_read` call when the overview is retained
+separately. Start with its scope, status and limitations, then read the detailed
+comparison or review. Low-level Python ledger methods keep their native results.
+The overview is not a replacement for matched counts, ties or exclusions.
+
+A recorded forecast's `followups` can supply its execution-read call, scoring
+template and, when enabled, actual-submission template. Fill the listed `requires`
+fields with observed facts and explicit review cutoffs. `effect: ledger_write`
+includes score creation; read-only review and retrieval remain distinct. These
+calls are not scheduled or executed automatically. Preserve saved versus current
+coverage when interpreting pending, partial or complete scores, and use durable
+execution/decision/study IDs for later recall.
+
 ## Find the evidence
 
 Discover the current tool names and schemas. MCP hosts may prefix names.

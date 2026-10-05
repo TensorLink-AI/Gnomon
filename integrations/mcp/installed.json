@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "gnomon": {
+      "command": "gnomon",
+      "args": [
+        "mcp",
+        "serve"
+      ]
+    }
+  }
+}

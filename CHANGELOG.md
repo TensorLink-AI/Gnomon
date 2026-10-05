@@ -1,6 +1,40 @@
 # Changelog
 
-## Unreleased
+## 1.4.0 — 2026-10-05
+
+- Add task discovery through Python, CLI and MCP: see configured availability,
+  setup requirements, exact schemas and example calls before executing a task.
+- Add a common `agent_summary` to session results with scope, evidence,
+  limitations and explicit follow-up templates. Large summaries stay readable
+  through retained results without repeating inference or writes.
+- Expose per-neighbour features and provider losses in episodic-memory evidence;
+  allow up to 32 providers in offline policy validation while preserving live
+  routing's eight-provider limit and existing selection defaults.
+- Reorganize agent documentation around tasks; add `llms.txt`, versioned MCP
+  connection recipes and registry metadata, and the `gnomon-forecast` launcher
+  alias. Registry submission remains a separate publication step.
+
+- Add experimental FASE-inspired bounded distance, an 18-feature univariate
+  profile and recent/long-term retention with delayed distinctiveness receipts.
+  Existing policies remain unchanged. This adapts the paper's memory mechanisms;
+  it does not add its learned ranker or LLM controller. Live retention reconstructs
+  history and can be substantially more expensive than window-based memory.
+- Keep ablation scores, fixed-model comparators and switch rates on the same
+  matched post-warmup cohort; preserve neighbour evidence in accelerated replay.
+- Episodic memory options, all off by default (existing policies, spec ids and recorded
+  episodes are unchanged): feature `profile` presets (`levels`, `returns`, `intermittent`)
+  and four features (`autocorrelation`, `skewness`, `vol_of_vol`, `demand_interval`);
+  `context` features from the latest value of named past covariates; `dedupe_seconds`
+  (overlapping episodes count once); `shrinkage` and `confidence_z` (uncertainty-aware
+  selection); `novelty_threshold` (abstain on unfamiliar states); `diagnostics`
+  (standard errors, intervals, neighbour loss quantiles, novelty). Router
+  `switch_penalty` adds hysteresis against the last served provider, live and in replay.
+- `memory_ablation()` replays a policy with and without memory and reports the paired
+  difference, a bootstrap interval, switch rates and a verdict.
+  `replay_router(accelerate=True)` scores memory with NumPy (optional; checked against the pure-Python path); `decision_losses=True` adds per-decision losses.
+- `trade-with-gnomon`: `scripts/leakage_check.py` (truncation causality check), and
+  backtesting guidance on pre-registration, sealed holdouts, twins for every added layer,
+  and carrying path-dependent state into live trading.
 
 - `trade-with-gnomon` leads with its essence (forecast, record before any order, score
   against outcomes, promote only on evidence and approval) and with volatility: a

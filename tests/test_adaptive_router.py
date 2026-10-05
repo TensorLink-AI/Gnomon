@@ -92,6 +92,28 @@ def test_replay_uses_only_matured_outcomes():
     assert result["served_counts"] == {"base": 10, "a": 0, "b": 0}
 
 
+def test_broad_replay_selects_last_candidate_and_preserves_live_limit():
+    names = [f"model_{i}" for i in range(31)]
+    config = {"baseline": "base", "candidates": names, "min_origins": 3}
+    broad = validate_policy(config, replay=True)
+    with pytest.raises(ForecastAdapterError, match="1-7 candidates"):
+        validate_policy(config)
+    with pytest.raises(ForecastAdapterError, match="1-31 candidates"):
+        validate_policy({**config, "candidates": names + ["extra"]}, replay=True)
+    folds = _folds(10, 10)
+    for fold in folds:
+        fold["points"] = {"base": 0.5, **{name: 2.0 for name in names}, names[-1]: 0.1}
+    result = replay_router(folds, broad)
+    assert result["served_counts"][names[-1]] == 7
+    assert result["served_counts"]["base"] == 3
+    assert len(result["fixed_provider_scores"]) == 32
+    for fold in folds:
+        fold["target_time"] = "2027-01-01T00:00:00+00:00"
+    unmatured = replay_router(folds, broad)
+    assert unmatured["served_counts"]["base"] == 10
+    assert unmatured["served_counts"][names[-1]] == 0
+
+
 # --- live routing through the ledger -------------------------------------------------------
 
 def _drive(ledger, session, steps, provider="router/demo", via_mcp=False, extra=None, requests=None):

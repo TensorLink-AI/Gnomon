@@ -188,6 +188,106 @@ future_covariate = "onpromotion"   # optional known-future covariate for covaria
 `replay_router(..., covariates={series: {name: [(time, value), ...]}})` computes the same
 features from timestamped `histories`, so replay and live routing select identically.
 
+### Optional memory settings
+
+Existing policies behave as before. Feature/profile, window, covariate-name and context
+changes alter the feature spec; retrieval and selection settings do not. Episodes
+recorded under an unchanged feature spec remain usable.
+
+| Setting | What it does | When to use it |
+|---|---|---|
+| `profile` | Feature preset instead of `features`: `levels` (the default set), `returns` (volatility ratio, level shift, trend, autocorrelation, skewness, vol-of-vol), `intermittent` (zero share, demand interval, missing share, cv, level shift, volatility ratio) | Return-like series (changes, log returns, P&L), where level features such as `cv` are unstable; intermittent demand |
+| `context` | Past-covariate names whose **latest value at the origin** joins the distance as `context:<name>` | The state that decides which model wins is outside the series: a market-wide volatility, a promotion flag, a peer-group aggregate, the weather |
+| `dedupe_seconds` | At most one neighbour per series within this window | Multi-step horizons or dense origins, where adjacent episodes share outcomes and would overstate `effective_n`; set about the horizon |
+| `shrinkage` | Candidate scores pulled toward 1.0 by effective_n / (effective_n + shrinkage) | Noisy losses or small pools; stops a few lucky neighbours from switching the model |
+| `confidence_z` | Selection uses score + z × standard error (delta-method SE of the weighted ratio) | Apply a configurable pessimistic score penalty; validate it by replay |
+| `novelty_threshold` | When the median distance to the k neighbours exceeds this multiple of the typical one among remembered episodes, memory abstains (`memory_abstained`) and the router falls back to context, then all evidence | Structural breaks and new regimes: "never seen this" should not borrow a confident answer |
+| `diagnostics` | Adds `memory_diagnostics`: unshrunk scores, standard errors, 90% intervals, neighbour loss-ratio quantiles (10/50/90%), novelty | Auditing and agent explanations |
+
+Top-level `switch_penalty` (any evidence level) adds hysteresis: every provider other than
+the one this router last served for the series pays the penalty in utility, so the router
+still applies the existing minimum-improvement rule to those adjusted utilities.
+The incumbent comes
+from the router's own recorded decisions (live) or the previous replayed origin (replay),
+and is reported as `incumbent`. Use it where forecast churn has a cost (re-planned orders,
+re-traded positions).
+
+The ratio standard errors and 90% intervals are descriptive approximations, not
+calibrated future-performance guarantees. Overlapping outcomes and correlated series
+can make them optimistic; evaluate policies with paired time-block comparisons.
+
+Extra features for `features` lists (computed over *L*): `autocorrelation` (lag 1),
+`skewness` (clipped ±5), `vol_of_vol` (sd of the standard deviations of consecutive
+`short_window` blocks divided by their mean, clipped to 5) and `demand_interval`
+(log of observed values per nonzero value).
+
+### Experimental FASE-style memory
+
+[Release regression results](../benchmarks/memory_release_eval/RESULTS.md) show mixed
+accuracy and a Favorita regression; keep existing defaults unless your own evaluation
+supports a change.
+
+The optional `distance: "fase"`, `profile: "fase"`, and `retention: "fase"` settings
+implement memory mechanisms described in [FASE](https://arxiv.org/html/2609.32689v1),
+with Gnomon's existing deterministic, Gaussian-weighted selector. This is not a full
+FASE reproduction: there is no learned MLP ranker or LLM controller.
+
+- Distance uses the bounded discrepancy `abs(a-b)/(std + abs(a-b))`, averaged within
+  the feature groups named in appendix E, then across observed groups. Standard
+  deviations use only active episodes. With zero standard deviation, equal values
+  contribute zero and unequal values one. No shared observations means no match.
+  Additional Gnomon features each form a group; caller context forms one extra group.
+- The profile contains 18 names prefixed with `fase:`. It computes the univariate
+  statistics from appendix E in pure Python, including exact-length spectra, quadratic
+  detrending and time-aligned historical covariate correlations. `long_window` defaults
+  to 15,360 and `k` to 10 for this profile; explicit settings override these defaults.
+  Undefined measurements are `None`. The mask covariate is excluded from correlations.
+  Operational conventions include every integer split in the middle 20–80%, population
+  standard deviations, and a nonzero detrended spectral peak as the periodicity candidate.
+- Retention requires `distance: "fase"` and no dedupe. It replaces the memory lookback
+  with a recent FIFO (default 100) and a long-term pool (default 900). Retrieval records
+  contributions from equation 2, partitioned by invoked provider and the complete set
+  of tied best providers. Receipts are applied only after the corresponding outcome
+  matures. Long-term admission replaces the lowest running-average contribution only
+  for a strictly higher value; unscored entries start at zero and ties keep incumbents.
+  Legacy episodes without receipts have no invented historical contribution.
+
+Live routing reconstructs retention from recorded decisions and visible outcomes;
+replay maintains equivalent incremental pools. This can require reading substantially
+more ledger history than the default lookback. NumPy remains optional and accelerates
+replay distances only; the feature implementation needs no numerical dependency.
+Install `gnomon-forecast[replay]` (or `.[replay]` from a checkout) to use acceleration.
+
+For controlled ablations, keep the existing window, neighbour count and own-series
+weight fixed while adding one mechanism at a time. Use `k: 10` and `own_weight: 1` for
+a closer match to the paper's retrieval settings, and report this change separately.
+Bounded distances limit individual-feature influence; they do not guarantee that
+additional context improves retrieval or forecast accuracy.
+
+Offline experiments can explicitly call `validate_policy(raw_policy, replay=True)`
+to admit up to 31 candidates plus a baseline. The default validation and live schema
+retain their eight-provider limit, matching ledger comparison capacity. The expanded
+crypto experiment in `experiments/crypto_broad/` uses this option to compare 20
+statistical and machine-learning configurations across separate indicator/horizon
+replays. Each task has its own memory pool; a future-window label is admitted only
+when the entire window has matured.
+
+### Does memory earn its place?
+
+`memory_ablation(folds, policy, histories, warmup_origins=..., covariates=...)` replays the
+policy with and without its memory (everything else identical) and returns both scores,
+the best fixed provider, the paired mean loss difference with a 90% bootstrap interval
+(resampling whole origins, since series sharing a clock are not independent), the share of
+folds served differently, each arm's switch rate and a `verdict`: `memory_better`,
+`memory_worse` or `not_distinguishable`. Deploy memory only on `memory_better`, and check
+`memory_beats_best_fixed` too: a router that beats its no-memory twin but not the best
+single model is still not worth its cost.
+
+`replay_router(..., accelerate=True)` scores memory with numpy (an optional dependency,
+imported only then): about 9× faster on 10 series × 600 origins, with the same decisions.
+It supports everything except `dedupe_seconds`, `novelty_threshold` and `diagnostics`.
+`decision_losses=True` adds each decision's losses to `return_decisions` output.
+
 ### Feature definitions
 
 Computed from the request's `history` values (not differences) at routing time. *S* is
@@ -405,9 +505,13 @@ memory features.
 
 ## Cost of routing
 
-Each routed call reads at most the evidence window per series (its own plus pool
-members), independent of how long the ledger has run: the ledger indexes forecasts by
+With default window retention, each routed call reads at most the evidence window
+per series (its own plus pool members), independent of how long the ledger has run: the ledger indexes forecasts by
 series, horizon and origin, and routing decisions by kind and series. Ledgers created
 before these indexes gain them the next time they are opened for writing. Per-call
 work grows with `recent_origins`, the number of providers, pool size and request
 history length.
+
+Experimental FASE retention is an exception: live calls reconstruct retained pools
+from historical ledger evidence, so reads can grow with ledger age. Benchmark its
+latency on your ledger before enabling it; offline replay uses incremental pools.

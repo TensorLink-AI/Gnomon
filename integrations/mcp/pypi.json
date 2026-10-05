@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "gnomon": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "gnomon-forecast==1.4.0",
+        "gnomon",
+        "mcp",
+        "serve"
+      ]
+    }
+  }
+}

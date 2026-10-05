@@ -148,6 +148,15 @@ assert EphemerisProvider('https://example.invalid').name == 'ephemeris/route'
         assert execution_mcp[3]["result"]["structuredContent"]["result"]["request"]["history"] == [1, 2]
 
         capabilities = json.loads(run([str(gnomon), "capabilities"], cwd=root))
+        launcher = environment / "bin" / "gnomon-forecast"
+        task = json.loads(run([str(launcher), "capabilities", "--task", "forecast"], cwd=root))
+        assert task["availability"] == "available"
+        assert task["execution_diagnostics"]["provider_calls"] == 0
+        discovery = mcp_exchange(launcher, [{"id": 1, "method": "tools/call", "params": {
+            "name": "gnomon_capabilities", "arguments": {"task": "forecast"}}}], cwd=root)
+        task_mcp = discovery[1]["result"]["structuredContent"]
+        assert task_mcp["call_template"] == task["call_template"]
+        assert task_mcp["execution_diagnostics"]["provider_calls"] == 0
         build = capabilities["build"]
         assert run([str(gnomon), "--version"], cwd=root).strip() == "gnomon " + build["build_id"]
         assert "+" in build["build_id"] and build["source_sha256"][:12] in build["build_id"]

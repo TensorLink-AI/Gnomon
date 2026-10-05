@@ -12,6 +12,12 @@ evidence with the host's ordinary memory. See the [Hermes setup](hermes-ledger.m
 The skill does not install models, select credentials, grant spending permission
 or execute recorded decisions.
 
+The session's common [`agent_summary`](agent-operations.md#common-result-overview)
+helps agents read results across tasks. Use the capabilities `tasks` index and
+`{"task":"forecast"}` for setup and exact call templates before loading a
+specialist workflow. Installing a skill does not start an MCP server or install
+optional model libraries.
+
 ## All packaged skills
 
 Every skill below ships in the wheel under `share/gnomon/skills/<name>`. Install a

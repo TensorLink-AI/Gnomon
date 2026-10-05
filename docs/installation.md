@@ -2,6 +2,12 @@
 
 Python 3.11–3.13. The core has no required third-party dependencies.
 
+These docs describe the source checkout; an installed release may expose fewer
+features. Check `gnomon environment` and `gnomon capabilities` after installation,
+and use that session's schemas for tool arguments. Install from the checkout when
+you need its unpublished changes. For an agent host, continue with the
+[MCP quickstart](quickstart-mcp.md) and [skill directory](agent-skill.md).
+
 The distribution name used by pip is **gnomon-forecast**; the Python import name
 is **gnomon**. A `gnomon_forecast-*.dist-info` directory is package metadata, not
 an importable module.
@@ -9,7 +15,7 @@ an importable module.
 Install Gnomon:
 
 ```bash
-python -m pip install 'gnomon-forecast==1.3.0'
+python -m pip install 'gnomon-forecast==1.4.0'
 gnomon --version
 gnomon infer --provider last_value --request '{"history":[1,2,3],"horizon":2}'
 ```
@@ -22,7 +28,7 @@ another model library installed in a different environment.
 The repository also includes `install.sh` for a standalone CLI environment:
 
 ```bash
-bash install.sh --version v1.3.0
+bash install.sh --version v1.4.0
 ```
 
 The management commands below require **Gnomon 1.1.0 or newer**. Before the

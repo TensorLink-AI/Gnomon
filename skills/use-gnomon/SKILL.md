@@ -11,6 +11,15 @@ inputs are unknown; `gnomon_inspect`/`gnomon_describe` for file or store data;
 `gnomon_forecast` with an explicit provider; `gnomon_evaluate` to compare models;
 `gnomon_read` for partial results; `gnomon_ledger`/`gnomon_memory` when exposed.
 
+## Task discovery and results
+
+Use capabilities `tasks`, then `{"task":"forecast"}` for
+setup and a schema/template. Older builds: `schema_tool`.
+Read `agent_summary` or `agent_summary_read`; pointers
+refer to the full response (`agent_summary_pointer_root` when paged).
+Follow-ups are suggestions: fill `requires` with facts and
+cutoffs, check `effect` and task authority. The host supplies actuals and scores; pending outcomes cannot establish accuracy.
+
 ## Optional Ephemeris signup
 
 Read `onboarding.ephemeris` from `gnomon_capabilities`. When not configured and

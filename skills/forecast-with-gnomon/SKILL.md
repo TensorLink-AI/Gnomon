@@ -18,6 +18,22 @@ outcomes. Inspect a small data summary rather than printing a long CSV.
 Call `session.forecast(provider, request_dict)`. The result is a dictionary;
 points are `reply["result"]["point"]`.
 
+Session responses also include `agent_summary`: read its scope, result, basis and
+limitations before explaining the forecast. Save the full reply as in the example
+below; the overview does not replace the forecast arrays or execution identity.
+Low-level engine and ledger calls retain their native response shapes.
+
+For the common inspect → evidence → forecast/compare → outcome-review workflow,
+see [Use Gnomon](../use-gnomon/SKILL.md#task-discovery-and-results).
+With a configured ledger, the overview supplies outcome follow-ups using existing
+tool names and argument dictionaries. Python callers can dispatch them through
+`session.call(action["tool"], arguments)` after supplying every field listed in
+`requires` from the task. Read `effect` before executing: scoring can write an
+evaluation, and submitting actuals requires observed values and write permission.
+The host triggers follow-up when outcomes arrive; a saved JSON file alone is not
+a ledger record. Use the [ledger skill](../use-gnomon-ledger/SKILL.md) for reviews
+and durable lessons.
+
 Do not pass a model name or dictionary to `from_config`: its positional argument
 is a configuration **file path**. Do not invent `fit`, `predict`,
 `add_observations`, or `list_providers` on a session.

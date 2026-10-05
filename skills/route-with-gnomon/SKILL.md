@@ -64,12 +64,26 @@ Settings that matter:
   `covariate_share` (with `future_covariate`) when a known-future driver matters.
 - Declare costs (`costs`, `cost_weights`, `limits`) when models differ in price or
   latency. Formulas and scoring: [how memory scores](references/scoring.md).
+- Match features to the data: `profile = "returns"` for changes/returns/P&L,
+  `"intermittent"` for sparse demand. When the deciding state is outside the series
+  (market regime, promotions, weather), name it as a past covariate in `context`.
+- Against noise and churn: `dedupe_seconds` ≈ horizon (overlapping outcomes count once),
+  `shrinkage`, `confidence_z`, and top-level `switch_penalty` when switching models costs
+  something. `novelty_threshold` makes memory abstain on states it has never seen.
+  Details: [optional settings](references/scoring.md#optional-settings).
+
+Prove memory earns its place before deploying it: `memory_ablation` replays the same
+policy without memory and reports the paired difference, its interval and a `verdict`.
+Require `memory_better` and a router score below the best fixed provider; compare against
+the plain recent-evidence router (the no-memory arm) too, since simple adaptivity is the
+bar memory has to clear. `not_distinguishable` means keep the simpler router.
 
 ## 4. Read and report each routed forecast
 
 `reply["routing"]` gives `served_provider`, `reason`, `evidence_level` (`memory`,
 `context` or `all`), `effective_n`, the top `memory_neighbours` and the utility
-`table`. Report the served model and reason. Treat a low `effective_n`, neighbours
+`table`; with the options set, also `memory_abstained` (unfamiliar state),
+`memory_diagnostics` (intervals, quantiles, novelty) and `incumbent`. Report the served model and reason. Treat a low `effective_n`, neighbours
 from unrelated series, or `insufficient_evidence` as weak evidence: say so, and in
 decisions reduce size or confidence. A baseline fallback is not proof the baseline is
 best. Record `routing_decision_id` with any decision that used the forecast.

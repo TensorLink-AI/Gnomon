@@ -1,7 +1,21 @@
 # CLI reference
 
+`gnomon capabilities --task forecast` returns task availability and an example;
+see [task discovery](discovery-and-listings.md#installed-task-discovery).
+
 `gnomon forecast` is an alias for `gnomon infer`, including help and schemas.
 For a copyable sequence, see the [local evidence workflow](local-evidence-workflow.md).
+
+Forecasting and evidence commands include the common
+[`agent_summary`](agent-operations.md#common-result-overview). Read it for task
+scope, result, basis and limitations; detailed response fields remain available.
+Follow-up templates use MCP tool names and argument objects. On the CLI, map
+`gnomon_ledger` to `gnomon ledger --arguments`, `gnomon_evaluate` to
+`gnomon evaluate --arguments`, and keep the same operator configuration. Supply
+all missing `requires` fields before use; `effect` distinguishes reads from writes.
+`gnomon_read` references are session-local: use them inside the originating
+Python/MCP session, not a new CLI process. For CLI reuse, save complete output
+with `--save-result` on commands that expose it or keep durable ledger IDs.
 
 Use `-` as the input for piped CSV (up to 8 MiB); larger inputs need a file.
 This works with inspect/describe, `infer --input -`, and evaluate/route with direct
@@ -40,6 +54,7 @@ Install/update progress goes to stderr; update returns its JSON result on stdout
 | `gnomon evaluate` | Budgeted rolling-origin comparison |
 | `gnomon route` | Select from a recorded study at explicit cutoffs |
 | `gnomon ledger` | Read evidence, append scores or authorized outcomes |
+| `gnomon memory` | Recall scoped decisions and lessons without model calls |
 | `gnomon temporal` | Explicit date, instant, interval and ordering calculations |
 | `gnomon self-check leakage` | Offline check of snapshot cutoffs |
 | `gnomon mcp serve` | Long-lived stdio session for an agent |

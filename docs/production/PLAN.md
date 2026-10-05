@@ -1,5 +1,8 @@
 # Gnomon production delivery plan
 
+> Development/acceptance record. For current usage and agent entry points, see
+> the [documentation index](../README.md). Dated checkpoints are not live configuration.
+
 Gnomon helps agents analyse time series, execute models from user-selected libraries or providers, and make decisions using explicit evidence. The user explicitly clarified that features without a current product use—including pre-1.0 migration surfaces—must not ship. This is the 1.0 delivery plan.
 
 ## Completion contract

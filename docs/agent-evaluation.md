@@ -11,6 +11,14 @@ numerical regressions and installed-wheel operation. Local HTTP tests exercise
 Ephemeris wire mapping, credentials, response validation and no-retry POSTs.
 They do not test a live TSFM.
 
+The agent workflow also has offline integration checks for common summaries:
+inspection, observed statistics, direct and routed forecasts, model comparison,
+and pending/partial/complete outcome review. Tests execute the returned outcome
+follow-ups, check response-size limits and compare CLI/MCP summaries. These
+establish interface behavior, not an improvement in agent task success or accuracy.
+See [the summary tests](../tests/test_agent_summary.py) and
+[worked skill examples](../tests/test_agent_skill.py).
+
 ## Current agent comparison
 
 The [matched workflow](../benchmarks/workflow/MATCHED.md) compares ordinary agent

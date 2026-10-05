@@ -102,8 +102,8 @@ and `live.db`; never mix modes in one ledger. Both paths store the mode as a
 
 Progress through the modes in order, skipping only what the data makes impossible:
 
-1. **Backtest** when history exists, with the policy frozen first. This is simulation
-   evidence only.
+1. **Backtest** when history exists, with the policy frozen first and causality checked
+   (`scripts/leakage_check.py`). This is simulation evidence only.
 2. **Paper-trade prospectively** in the paper ledger until the user's minimum is met
    (a number of decisions or days with complete outcomes). Agree that minimum and the
    promotion criteria before paper trading starts; paper is mandatory when no

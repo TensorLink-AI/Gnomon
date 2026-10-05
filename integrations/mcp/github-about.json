@@ -1,0 +1,12 @@
+{
+  "description": "Inspect time series, forecast with your models, compare forecasts, and review observed outcomes.",
+  "topics": [
+    "time-series",
+    "forecasting",
+    "mcp",
+    "mcp-server",
+    "ai-agents",
+    "backtesting",
+    "python"
+  ]
+}

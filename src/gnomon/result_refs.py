@@ -109,6 +109,13 @@ class ResultReferences:
         else:
             return value
         ref = self.put(value)
+        if isinstance(value, dict) and 'agent_summary' in value:
+            # An additive overview must not displace an otherwise small legacy result.
+            without_overview = {k: v for k, v in value.items() if k != 'agent_summary'}
+            without_overview['agent_summary_read'] = {'tool': 'gnomon_read',
+                'arguments': {'result_ref': ref, 'pointer': '/agent_summary'}}
+            if len(encode(without_overview).encode('utf-8')) <= self.limits.max_response_bytes:
+                return without_overview
         retained_text, digest = self.text(ref)
         total_chars = len(retained_text)
         scalar_keys = (
@@ -194,6 +201,9 @@ class ResultReferences:
                      "full_result_scope": "response_payload",
                      "full_result": {"tool": "gnomon_read", "arguments": {"result_ref": ref}}}
         full_study = value.get("full_study")
+        if isinstance(value.get('tasks'), dict):
+            projected['tasks'] = value['tasks']
+            projected['task_help'] = value['task_help']
         if isinstance(value.get('completion'), dict):
             projected['forecast_completion'] = {'tool': 'gnomon_read',
                 'arguments': {'result_ref': ref, 'pointer': '/completion'}}
@@ -211,6 +221,15 @@ class ResultReferences:
             projected["error"] = {"code": "FULL_ERROR_RETAINED", "message": "Read the retained result for complete error details.",
                                   "retryable": False, "repair_options": [{"action": "read_retained_error",
                                       "description": "Use the full_result read call before changing the request or repeating an operation."}]}
+        if isinstance(value.get('agent_summary'), dict):
+            projected['agent_summary_read'] = {'tool': 'gnomon_read',
+                'arguments': {'result_ref': ref, 'pointer': '/agent_summary'}}
+            # Pointers in the overview refer to the retained full response, not this receipt.
+            projected['agent_summary'] = value['agent_summary']
+            projected['agent_summary_pointer_root'] = ref
+            if len(encode(projected).encode('utf-8')) > self.limits.max_response_bytes:
+                projected.pop('agent_summary')
+                projected.pop('agent_summary_pointer_root')
         if len(encode(projected).encode("utf-8")) > self.limits.max_response_bytes:
             projected["summary"] = essential
             projected["summary_truncated"] = True

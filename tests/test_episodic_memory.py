@@ -92,6 +92,23 @@ def test_series_scale_prevents_one_large_series_dominating():
     assert scores["a"] == pytest.approx((2.0 + 0.5) / 2)  # each series contributes in baseline units
 
 
+def test_neighbour_errors_explain_scores_without_zero_loss_ratios_or_aliasing():
+    rows = [_episode("s1", 0, 0.5, 4.0), _episode("s1", 1, 0.5, 2.0)]
+    rows[0]["losses"]["base"] = 0.0
+    rows[1]["losses"]["base"] = 4.0
+    scores, _, neighbours = episodic_scores(rows, _policy(), "s3", {"zero_share": 0.5, "cv": 0.0})
+    assert scores == {"base": 1.0, "a": 1.5}
+    first = neighbours[0]
+    assert first["losses"] == {"base": 0.0, "a": 4.0}
+    assert first["baseline_loss_scale"] == 2.0
+    assert first["normalized_losses"] == {"base": 0.0, "a": 2.0}
+    assert first["features"] == rows[0]["features"]
+    first["losses"]["a"] = 999.0
+    first["features"]["zero_share"] = 999.0
+    assert rows[0]["losses"]["a"] == 4.0
+    assert rows[0]["features"]["zero_share"] == 0.5
+
+
 def _series_folds(series, n, zero_share_high, good):
     """Daily one-step folds. Intermittent series (many zeros) favour `good`, the other provider elsewhere."""
     history = [0.0 if (zero_share_high and i % 4) else 1.0 + (i % 3) for i in range(n + 20)]
@@ -137,3 +154,12 @@ def test_live_memory_records_features_and_reports_neighbours(live):
     inputs = ledger.decision(last["routing_decision_id"])["inputs"]
     assert set(inputs["memory_features"]) == {"volatility_ratio", "trend", "level_shift", "cv"}
     assert len(inputs["memory_spec_id"]) == 12
+    neighbours = last["memory_neighbours"]
+    assert len(neighbours) <= 5
+    assert inputs["selection"]["neighbours"] == neighbours
+    for neighbour in neighbours:
+        assert set(neighbour["losses"]) == {"last_value", "historical_mean"}
+        assert set(neighbour["features"]) == set(inputs["memory_features"])
+        for provider, loss in neighbour["losses"].items():
+            assert neighbour["normalized_losses"][provider] == pytest.approx(
+                loss / neighbour["baseline_loss_scale"])

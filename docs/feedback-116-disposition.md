@@ -1,5 +1,8 @@
 # 1.1.6 acceptance feedback disposition
 
+> Development/acceptance record. For current usage and agent entry points, see
+> the [documentation index](README.md). Dated checkpoints are not live configuration.
+
 This document tracks the new feedback separately from the earlier release's
 acceptance results. The implementation is included in the 1.1.7 release changes. The feedback includes conflicting preferences and one external Arena
 adapter that is not present in this checkout or the local Arena checkout.

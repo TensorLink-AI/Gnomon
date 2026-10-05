@@ -17,8 +17,8 @@ import json
 import math
 from time import monotonic
 
-from .episodic_memory import (FEATURES as MEMORY_FEATURES, compute_features, episodic_scores, request_features,
-                              validate_memory)
+from .episodic_memory import (FEATURES as MEMORY_FEATURES, PROFILES as MEMORY_PROFILES, compute_features,
+                              episodic_evidence, request_features, validate_memory)
 from .forecast_adapter import ForecastAdapterError
 
 ROUTE_KIND = "adaptive_route/1"
@@ -36,6 +36,10 @@ ROUTER_SCHEMA = {
         "min_improvement": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.02},
         "lookback_seconds": {"type": "integer", "minimum": 1, "default": 604800},
         "shadow_every": {"type": "integer", "minimum": 0, "default": 1},
+        "switch_penalty": {"type": "number", "minimum": 0, "default": 0,
+                           "description": "Added to the utility of every provider except the one this router last "
+                                          "served for the series, so it switches only when the evidence clears "
+                                          "min_improvement + switch_penalty. 0 = no hysteresis."},
         "identity_policy": {"enum": list(_IDENTITY_POLICIES), "default": "attested"},
         "costs": {"type": "object", "additionalProperties": {
             "type": "object", "additionalProperties": False,
@@ -65,7 +69,11 @@ ROUTER_SCHEMA = {
                                    "Ascending thresholds bin it into labels. Same-regime evidence is used when it "
                                    "has min_origins matched origins, otherwise all evidence."},
         "memory": {"type": "object", "additionalProperties": False,
-                   "properties": {"features": {"type": "array", "items": {"enum": list(MEMORY_FEATURES)}},
+                   "properties": {"distance": {"enum": ["robust", "fase"], "default": "robust"},
+                                  "retention": {"enum": ["window", "fase"], "default": "window"},
+                                  "recent_capacity": {"type": "integer", "minimum": 1, "maximum": 10000, "default": 100},
+                                  "long_term_capacity": {"type": "integer", "minimum": 0, "maximum": 10000, "default": 900},
+                                  "features": {"type": "array", "items": {"enum": list(MEMORY_FEATURES)}},
                                   "short_window": {"type": "integer", "minimum": 2, "default": 14},
                                   "long_window": {"type": "integer", "minimum": 3, "default": 112},
                                   "season": {"type": "integer", "minimum": 1, "default": 1},
@@ -73,7 +81,29 @@ ROUTER_SCHEMA = {
                                   "min_effective_n": {"type": "number", "minimum": 1, "default": 8},
                                   "own_weight": {"type": "number", "minimum": 1, "default": 1},
                                   "recency_half_life_days": {"type": "number", "minimum": 0, "default": 0},
-                                  "mask_covariate": {"type": "string"}, "future_covariate": {"type": "string"}},
+                                  "mask_covariate": {"type": "string"}, "future_covariate": {"type": "string"},
+                                  "profile": {"enum": list(MEMORY_PROFILES),
+                                              "description": "Feature preset instead of `features`: levels "
+                                                             "(default set), returns, intermittent."},
+                                  "context": {"type": "array", "maxItems": 16, "items": {"type": "string"},
+                                              "description": "Past-covariate names whose latest value at the "
+                                                             "origin joins the distance (e.g. a market-wide "
+                                                             "state, a promotion flag, a peer aggregate)."},
+                                  "dedupe_seconds": {"type": "number", "minimum": 0, "default": 0,
+                                                     "description": "At most one neighbour per series within "
+                                                                    "this window (set about the horizon)."},
+                                  "shrinkage": {"type": "number", "minimum": 0, "default": 0,
+                                                "description": "Pull candidate scores toward 1.0 by "
+                                                               "effective_n/(effective_n+shrinkage)."},
+                                  "confidence_z": {"type": "number", "minimum": 0, "default": 0,
+                                                   "description": "Select on score + z * standard error."},
+                                  "novelty_threshold": {"type": "number", "exclusiveMinimum": 0,
+                                                        "description": "Abstain from memory when the state's "
+                                                                       "neighbour distance exceeds this multiple "
+                                                                       "of the typical one."},
+                                  "diagnostics": {"type": "boolean", "default": False,
+                                                  "description": "Report standard errors, intervals, neighbour "
+                                                                 "loss quantiles and novelty."}},
                    "description": "Episodic memory: describe each forecast by features of its own request (recorded "
                                   "at routing time), retrieve the k most similar matured past origins from this "
                                   "series and its pool, and score providers by similarity-weighted losses relative "
@@ -106,16 +136,17 @@ def _integer(value, field, minimum, maximum=None):
     return value
 
 
-def validate_policy(policy: dict) -> dict:
-    """Return a normalised router policy with defaults, or raise with the rejected field."""
+def validate_policy(policy: dict, *, replay: bool = False) -> dict:
+    """Normalise a policy; offline replay permits 32 providers, live routing eight."""
     if not isinstance(policy, dict):
         raise ForecastAdapterError("router policy must be an object")
     unknown = set(policy) - set(ROUTER_SCHEMA["properties"])
     if unknown:
         raise ForecastAdapterError(f"unknown router fields: {sorted(unknown)}", details={"rejected_fields": sorted(unknown)})
     candidates, baseline = policy.get("candidates"), policy.get("baseline")
-    if not isinstance(candidates, list) or not 1 <= len(candidates) <= 7 or not isinstance(baseline, str) or not baseline:
-        raise ForecastAdapterError("router requires 1-7 candidates and an explicit baseline",
+    max_candidates = 31 if replay else 7
+    if not isinstance(candidates, list) or not 1 <= len(candidates) <= max_candidates or not isinstance(baseline, str) or not baseline:
+        raise ForecastAdapterError(f"router requires 1-{max_candidates} candidates and an explicit baseline",
                                    details={"rejected_fields": ["candidates", "baseline"]})
     providers = [baseline, *candidates]
     if any(not isinstance(p, str) or not p for p in providers) or len(set(providers)) != len(providers):
@@ -149,6 +180,8 @@ def validate_policy(policy: dict) -> dict:
         "lookback_seconds": _integer(policy.get("lookback_seconds", 604800), "lookback_seconds", 1),
         "shadow_every": _integer(policy.get("shadow_every", 1), "shadow_every", 0),
         "identity_policy": identity_policy, "costs": costs,
+        **({"switch_penalty": _number(policy["switch_penalty"], "switch_penalty")}
+           if policy.get("switch_penalty") else {}),
         "cost_weights": {k: _number(v, f"cost_weights.{k}") for k, v in weights.items()},
         "limits": {k: _number(v, f"limits.{k}") for k, v in limits.items()},
     }
@@ -260,22 +293,46 @@ def pooled_scores(rows, policy, own_series, label=None):
     return scores, matched, sorted(used)
 
 
-def choose_from_rows(rows, policy, own_series, label, features=None, origin=None):
-    """Most specific evidence first: similar episodes (memory), same regime, then all evidence."""
+def choose_from_rows(rows, policy, own_series, label, features=None, origin=None, incumbent=None, scorer=None):
+    """Most specific evidence first: similar episodes (memory), same regime, then all evidence.
+
+    `incumbent` is the provider this router last served for the series; it only matters
+    when the policy sets switch_penalty. `scorer(own_series, features, origin)` replaces the
+    memory scorer (replay acceleration); it must return what `episodic_evidence` returns.
+    """
+    abstained = None
     if policy.get("memory") and features is not None:
-        scores, effective_n, neighbours = episodic_scores(rows, policy, own_series, features, origin)
-        if scores and effective_n >= policy["memory"]["min_effective_n"]:
-            decision = select_provider(scores, max(len(neighbours), policy["min_origins"]), policy)
+        memory = policy["memory"]
+        evidence = scorer(own_series, features, origin) if scorer else \
+            episodic_evidence(rows, policy, own_series, features, origin)
+        scores, effective_n, neighbours = evidence["scores"], evidence["effective_n"], evidence["neighbours"]
+        novelty, threshold = evidence.get("novelty"), memory.get("novelty_threshold")
+        if scores and threshold and novelty is not None and novelty > threshold:
+            abstained = {"reason": "unfamiliar_state", "novelty": novelty, "novelty_threshold": threshold}
+        elif scores and effective_n >= memory["min_effective_n"]:
+            decision = select_provider(evidence.get("selection_scores", scores),
+                                       max(len(neighbours), policy["min_origins"]), policy, incumbent)
             decision.update(evidence_level="memory", context_label=label,
                             series_used=sorted({n["series_id"] for n in neighbours}),
                             effective_n=round(effective_n, 2), neighbours=neighbours[:5])
+            if "retention_receipt" in evidence:
+                decision["retention_receipt"] = evidence["retention_receipt"]
+                decision["retention_pool"] = evidence["retention_pool"]
+            if "selection_scores" in evidence:
+                decision["memory_selection"] = "score_plus_z_standard_error"
+            if "diagnostics" in evidence:
+                decision["memory_diagnostics"] = evidence["diagnostics"]
+            elif novelty is not None:
+                decision["memory_novelty"] = novelty
             return decision
     levels = ([("context", label)] if policy.get("context") and label is not None else []) + [("all", None)]
     for level, value in levels:
         scores, matched, used = pooled_scores(rows, policy, own_series, value)
         if matched >= policy["min_origins"] or level == "all":
-            decision = select_provider(scores, matched, policy)
+            decision = select_provider(scores, matched, policy, incumbent)
             decision.update(evidence_level=level, context_label=label, series_used=used)
+            if abstained:
+                decision["memory_abstained"] = abstained
             return decision
 
 
@@ -294,8 +351,12 @@ def _limit_violation(provider, policy):
     return None
 
 
-def select_provider(scores: dict, matched_origins: int, policy: dict) -> dict:
-    """Pure selection rule. `scores` maps provider -> mean metric over the same matched origins."""
+def select_provider(scores: dict, matched_origins: int, policy: dict, incumbent: str | None = None) -> dict:
+    """Pure selection rule. `scores` maps provider -> mean metric over the same matched origins.
+
+    With policy switch_penalty > 0 and a known incumbent (the provider last served for this
+    series), every other provider's utility is raised by switch_penalty (hysteresis).
+    """
     baseline, providers = policy["baseline"], [policy["baseline"], *policy["candidates"]]
     weights = policy["cost_weights"]
     table = []
@@ -308,18 +369,25 @@ def select_provider(scores: dict, matched_origins: int, policy: dict) -> dict:
                       "excluded": _limit_violation(p, policy) or (None if p in scores else "no_matched_evidence")})
 
     def choice(reason, provider=baseline):
-        return {"provider": provider, "reason": reason, "evidence_based": reason.startswith("evidence"),
-                "matched_origins": matched_origins, "table": table}
+        out = {"provider": provider, "reason": reason, "evidence_based": reason.startswith("evidence"),
+               "matched_origins": matched_origins, "table": table}
+        if policy.get("switch_penalty") and incumbent is not None:
+            out["incumbent"] = incumbent
+        return out
 
     if matched_origins < policy["min_origins"] or scores.get(baseline) is None:
         return choice("insufficient_evidence")
     base_score = scores[baseline]
     if base_score <= 0:
         return choice("baseline_error_zero")
+    penalty = policy.get("switch_penalty", 0.0) if incumbent is not None else 0.0
     for row in table:
         if row["score"] is not None:
             row["relative_score"] = row["score"] / base_score
             row["utility"] = row["relative_score"] + row["cost_penalty"]
+            if penalty and row["provider"] != incumbent:
+                row["switch_penalty"] = penalty
+                row["utility"] += penalty
     base_utility = table[0]["utility"]
     eligible = [r for r in table[1:] if r["excluded"] is None and "utility" in r]
     best = min(eligible, key=lambda r: r["utility"], default=None)
@@ -403,6 +471,17 @@ def _series_rows(ledger, policy, revisions, series_id, unit, horizon, start_time
     rows = [{"series_id": series_id, "origin": o["origin"],
              "losses": {m["provider"]: m[policy["metric"]] for m in o["models"] if m.get(policy["metric"]) is not None}}
             for o in answer.get("origins", [])]
+    if (policy.get("memory") or {}).get("retention") == "fase":
+        by_origin = {o["origin"]: o for o in answer.get("origins", [])}
+        with ledger._connect() as conn:
+            for row in rows:
+                times = []
+                for actual_id in by_origin[row["origin"]].get("actual_ids", []):
+                    actual = conn.execute("SELECT valid_time, source_available_at, recorded_at FROM actuals WHERE actual_id=?",
+                                          (actual_id,)).fetchone()
+                    if actual:
+                        times.extend(actual)
+                row["completed_at"] = max(times) if times else row["origin"]
     return rows, answer
 
 
@@ -435,6 +514,42 @@ def _recorded_inputs(ledger, series_ids, context_spec_id, memory_spec_id, since,
     return labels, features
 
 
+def _recorded_retention(ledger, rows, policy, now):
+    """Attach immutable decision-time receipts; never reconstruct past retrievals."""
+    from .ledger import _time
+    by_key = {(r["series_id"], r["origin"]): r for r in rows}
+    with ledger._connect() as conn:
+        records = conn.execute("SELECT payload_json FROM decisions WHERE "
+                               "json_extract(payload_json, '$.inputs.kind')=? AND recorded_at<=? "
+                               "ORDER BY recorded_at, decision_id", (ROUTE_KIND, _time(now)))
+        seen = set()
+        for record in records:
+            payload = json.loads(record[0])
+            inputs = payload["inputs"]
+            key = (inputs.get("series_id"), inputs.get("origin"))
+            if key not in by_key or key in seen or inputs.get("memory_spec_id") != policy["memory"]["spec_id"]:
+                continue
+            # A receipt belongs to its complete memory policy, not just its feature schema.
+            if inputs.get("retention_policy") != policy:
+                continue
+            row = by_key[key]
+            row["served_provider"] = payload.get("action", {}).get("served_provider")
+            row["retention_receipt"] = inputs.get("selection", {}).get("retention_receipt", [])
+            seen.add(key)
+
+
+def last_served(ledger, router: str, series_id: str, before) -> str | None:
+    """The provider this router last served for the series, from its recorded decisions."""
+    from .ledger import _time
+    with ledger._connect() as conn:
+        row = conn.execute(
+            "SELECT json_extract(payload_json, '$.action.served_provider') FROM decisions "
+            "WHERE json_extract(payload_json, '$.inputs.kind') = ? AND json_extract(payload_json, '$.policy.router') = ? "
+            "AND json_extract(payload_json, '$.inputs.series_id') = ? AND recorded_at <= ? "
+            "ORDER BY recorded_at DESC LIMIT 1", (ROUTE_KIND, router, series_id, _time(before))).fetchone()
+    return row[0] if row else None
+
+
 def ledger_evidence(ledger, policy: dict, revisions: dict, *, series_id, unit, horizon, origin, now,
                     timestamps=(), source_as_of=None) -> dict:
     """Matched prospective evidence visible now, for the forecast series and its pool.
@@ -450,6 +565,12 @@ def ledger_evidence(ledger, policy: dict, revisions: dict, *, series_id, unit, h
     source_as_of = _time(now if source_as_of is None else min(_time(source_as_of), _time(now)))
     end_time = min(origin_time, datetime.fromisoformat(source_as_of))
     start_time = _evidence_start(policy, origin_time, timestamps)
+    if (policy.get("memory") or {}).get("retention") == "fase":
+        with ledger._connect() as conn:
+            first = conn.execute("SELECT MIN(json_extract(payload_json, '$.inputs.origin')) FROM decisions "
+                                 "WHERE json_extract(payload_json, '$.inputs.kind') = ?", (ROUTE_KIND,)).fetchone()[0]
+        if first:
+            start_time = min(start_time, datetime.fromisoformat(_time(first)))
     series = [series_id, *[s for s in (policy["pool"]["series"] if policy.get("pool") else []) if s != series_id]]
     rows, excluded, unattested, failed = [], [], set(), []
     for sid in series:
@@ -471,6 +592,8 @@ def ledger_evidence(ledger, policy: dict, revisions: dict, *, series_id, unit, h
         for row in rows:
             key = (row["series_id"], _time(row["origin"]))
             row["label"], row["features"] = labels.get(key), features.get(key)
+    if (policy.get("memory") or {}).get("retention") == "fase":
+        _recorded_retention(ledger, rows, policy, now)
     return {"rows": rows, "window": {"start": min(start_time, end_time).isoformat(), "end": end_time.isoformat(),
                                      "source_as_of": source_as_of},
             "excluded": excluded[:20], "unattested_providers": sorted(unattested), "pool_failures": failed,
@@ -512,7 +635,9 @@ def route_forecast(session, name: str, policy: dict, request: dict) -> dict:
         evidence = ledger_evidence(ledger, policy, revisions, series_id=request["series_id"], unit=request.get("unit"),
                                    horizon=request.get("horizon", len(request["future_timestamps"])), origin=origin,
                                    now=now, timestamps=request["timestamps"], source_as_of=evidence_as_of)
-        decision = choose_from_rows(evidence["rows"], policy, request["series_id"], label, features, _time(origin))
+        incumbent = last_served(ledger, name, request["series_id"], now) if policy.get("switch_penalty") else None
+        decision = choose_from_rows(evidence["rows"], policy, request["series_id"], label, features, _time(origin),
+                                    incumbent)
     except ForecastAdapterError as error:  # Serving must not fail because evidence is unreadable or refused.
         status = "evidence_incompatible" if error.details.get("reason") == "incompatible_evidence" \
             else "evidence_unavailable"
@@ -544,6 +669,7 @@ def route_forecast(session, name: str, policy: dict, request: dict) -> dict:
         inputs={"kind": ROUTE_KIND, "series_id": request["series_id"], "origin": origin,
                 "evidence_as_of": evidence_as_of, "recorded_as_of": now,
                 "context_label": label, "context_spec_id": (policy.get("context") or {}).get("spec_id"),
+                **({"retention_policy": policy} if (policy.get("memory") or {}).get("retention") == "fase" else {}),
                 "memory_features": features, "memory_spec_id": (policy.get("memory") or {}).get("spec_id"),
                 "evidence": evidence_summary, "selection": {k: v for k, v in decision.items() if k != "provider"},
                 "provider_revisions": revisions, "measured_latency_seconds": latencies,
@@ -557,6 +683,8 @@ def route_forecast(session, name: str, policy: dict, request: dict) -> dict:
                "evidence_level": decision["evidence_level"], "context_label": label,
                **({"effective_n": decision.get("effective_n"), "memory_neighbours": decision.get("neighbours", [])}
                   if policy.get("memory") else {}),
+               **{k: decision[k] for k in ("memory_diagnostics", "memory_novelty", "memory_abstained",
+                                           "memory_selection", "incumbent") if k in decision},
                "series_used": decision["series_used"], "pool_failures": evidence["pool_failures"],
                "evidence_window": evidence["window"], "evidence_as_of": evidence_as_of,
                "unattested_providers": evidence["unattested_providers"],
@@ -568,7 +696,8 @@ def route_forecast(session, name: str, policy: dict, request: dict) -> dict:
 
 
 def replay_router(folds: list[dict], policy: dict, histories: dict | None = None, *,
-                  return_decisions: bool = False, covariates: dict | None = None) -> dict:
+                  return_decisions: bool = False, covariates: dict | None = None,
+                  decision_losses: bool = False, accelerate: bool = False) -> dict:
     """Offline replay of the live selection rule over saved one-step folds, on one shared clock.
 
     Each fold: {"series_id", "origin": iso, "target_time": iso, "actual": float or list,
@@ -583,6 +712,12 @@ def replay_router(folds: list[dict], policy: dict, histories: dict | None = None
     Memory features are computed with the live function from the same known history (which
     must then be timestamped), plus `covariates[series][name]` as (time, value) pairs: the
     mask covariate up to the origin, the future covariate over (origin, target_time].
+
+    Memory `context` covariates are read from the same `covariates` timelines (their latest
+    value at or before the origin). With switch_penalty, the incumbent is the provider this
+    replay last served for the series. `decision_losses=True` adds each decision's served and
+    per-provider losses (with return_decisions). `accelerate=True` scores memory with numpy
+    (episodic_memory_fast; needs numpy; dedupe, novelty and diagnostics not supported).
 
     Times must be timezone-aware and are compared as UTC instants. Scores are the mean
     per-fold loss (for one-step folds, the live per-origin metric averaged over origins), not
@@ -617,8 +752,21 @@ def replay_router(folds: list[dict], policy: dict, histories: dict | None = None
         cut = bisect.bisect_right(times, origin)
         timeline = (covariates or {}).get(sid, {})
         past_names = [spec["mask_covariate"]] if spec.get("mask_covariate") in timeline else []
+        past_names += [c for c in spec.get("context", []) if c in timeline and c not in past_names]
+        fase_features = any(n.startswith("fase:") for n in spec["features"])
+        if fase_features:
+            past_names += [n for n in timeline if n not in past_names and n != spec.get("future_covariate")]
         future_names = [spec["future_covariate"]] if spec.get("future_covariate") in timeline else []
-        past = [[timeline[past_names[0]].get(t, 0.0)] for t in times[:cut]] if past_names else ()
+        if past_names:
+            mask = spec.get("mask_covariate")
+            # Context features read only the latest value at the origin, so their column is that
+            # value repeated; the mask keeps its per-step values (0 where unstamped).
+            latest = {n: _latest(timeline[n], origin) for n in past_names if n != mask}
+            past = [[timeline[n].get(t, 0.0) if n == mask else
+                     timeline[n].get(t, float("nan")) if fase_features else latest[n]
+                     for n in past_names] for t in times[:cut]]
+        else:
+            past = ()
         future = [[v] for t, v in sorted(timeline[future_names[0]].items()) if origin < t <= target_time] \
             if future_names else ()
         return compute_features(spec, values[:cut], times[:cut], past_covariates=past,
@@ -627,6 +775,18 @@ def replay_router(folds: list[dict], policy: dict, histories: dict | None = None
 
     covariates = {sid: {name: {_time(t): float(v) for t, v in pairs} for name, pairs in named.items()}
                   for sid, named in (covariates or {}).items()}
+    sorted_times = {}
+
+    def _latest(series_values, t):
+        """A context covariate's latest value at or before t (NaN = unknown when none yet)."""
+        if t in series_values:
+            return series_values[t]
+        key = id(series_values)
+        if key not in sorted_times:
+            sorted_times[key] = sorted(series_values)
+        times_ = sorted_times[key]
+        i = bisect.bisect_right(times_, t)
+        return series_values[times_[i - 1]] if i else float("nan")
 
     def steps(value):
         return list(value) if isinstance(value, (list, tuple)) else [value]
@@ -643,6 +803,17 @@ def replay_router(folds: list[dict], policy: dict, histories: dict | None = None
     pending, rows, serial = [], [], 0
     served_losses, per_series, counts = [], {}, {p: 0 for p in providers}
     levels, labels, usd, decisions = {}, {}, 0.0, []
+    index = None
+    if (policy.get("memory") or {}).get("retention") == "fase":
+        if accelerate:
+            from .episodic_memory_fast import check_supported
+            check_supported(policy["memory"])
+        from .fase_memory import ReplayIndex
+        index = ReplayIndex(policy, accelerate=accelerate)
+    elif accelerate and policy.get("memory"):
+        from .episodic_memory_fast import MemoryIndex
+        index = MemoryIndex(policy)
+    last_served_by_series = {}
     for fold in folds:
         sid = fold.get("series_id", "")
         while pending and pending[0][0] <= fold["origin"]:
@@ -651,13 +822,18 @@ def replay_router(folds: list[dict], policy: dict, histories: dict | None = None
                 history.setdefault(matured["series_id"], []).append(steps(matured["actual"])[0])
             if matured["shadowed"]:
                 rows.append(matured["row"])
+                if index is not None:
+                    index.add(matured["row"])
         oldest = _time(datetime.fromisoformat(fold["origin"]) - timedelta(seconds=policy["lookback_seconds"]))
-        visible = [r for r in rows if r["origin"] >= oldest]
+        visible = rows if (policy.get("memory") or {}).get("retention") == "fase" else [r for r in rows if r["origin"] >= oldest]
         label = context_label(known_history(sid, fold["origin"]), policy.get("context"))
         labels[label] = labels.get(label, 0) + 1
         features = memory_features(sid, fold["origin"], fold["target_time"])
-        decision = choose_from_rows(visible, policy, sid, label, features, fold["origin"])
+        scorer = (lambda own, q, origin, oldest=oldest: index.evidence(own, q, origin, oldest)) if index else None
+        decision = choose_from_rows(visible, policy, sid, label, features, fold["origin"],
+                                    last_served_by_series.get(sid) if policy.get("switch_penalty") else None, scorer)
         served = decision["provider"]
+        last_served_by_series[sid] = served
         counts[served] += 1
         levels[decision["evidence_level"]] = levels.get(decision["evidence_level"], 0) + 1
         shadowed = runs_shadow(sid, fold["origin"], policy["shadow_every"])
@@ -674,7 +850,10 @@ def replay_router(folds: list[dict], policy: dict, histories: dict | None = None
         if return_decisions:
             decisions.append({"series_id": sid, "origin": fold["origin"], "served": served, "shadowed": shadowed,
                               "reason": decision["reason"], "evidence_level": decision["evidence_level"],
-                              "context_label": label})
+                              "context_label": label,
+                              **{k: decision[k] for k in ("memory_novelty", "memory_abstained", "memory_diagnostics",
+                                                          "incumbent") if k in decision},
+                              **({"served_loss": losses[served], "losses": losses} if decision_losses else {})})
         entry = per_series.setdefault(sid, {"router": [], **{p: [] for p in providers}})
         entry["router"].append(losses[served])
         for p in providers:
@@ -683,7 +862,8 @@ def replay_router(folds: list[dict], policy: dict, histories: dict | None = None
         heapq.heappush(pending, (fold["target_time"], serial, {
             "series_id": sid, "actual": fold["actual"], "shadowed": shadowed,
             "row": {"series_id": sid, "origin": fold["origin"], "label": label, "features": features,
-                    "losses": losses}}))
+                    "losses": losses, "served_provider": served, "completed_at": fold["target_time"],
+                    "retention_receipt": decision.get("retention_receipt", [])}}))
 
     def mean(values):
         return sum(values) / len(values) if values else None
@@ -695,3 +875,76 @@ def replay_router(folds: list[dict], policy: dict, histories: dict | None = None
             "served_counts": counts, "evidence_levels": levels,
             "context_labels": {k: v for k, v in labels.items() if k is not None},
             **({"decisions": decisions} if return_decisions else {}), "declared_usd_total": usd}
+
+
+def memory_ablation(folds: list[dict], policy: dict, histories: dict | None = None, *,
+                    covariates: dict | None = None, warmup_origins: int = 0, n_boot: int = 2000,
+                    seed: int = 0, accelerate: bool = False) -> dict:
+    """Does memory earn its place? Replay `policy` with and without its memory on the same folds.
+
+    Both arms share everything else (pool, context, costs, switch_penalty). Compares per-fold
+    losses of the served forecasts after the first `warmup_origins` distinct origins, with a
+    bootstrap over origins (all series at an origin resampled together, since series that
+    share a clock are not independent). Also reports the best fixed provider and how often
+    each arm switched provider, so a memory router that only adds churn is visible.
+    """
+    import random
+    if not policy.get("memory"):
+        raise ForecastAdapterError("memory_ablation needs a policy with memory", details={"rejected_fields": ["memory"]})
+    _integer(warmup_origins, "warmup_origins", 0)
+    _integer(n_boot, "n_boot", 1)
+    arms = {}
+    for name, arm_policy in (("memory", policy), ("no_memory", {**policy, "memory": None})):
+        arms[name] = replay_router(folds, arm_policy, histories, return_decisions=True, covariates=covariates,
+                                   decision_losses=True, accelerate=accelerate and name == "memory")
+    origins = sorted({d["origin"] for d in arms["memory"]["decisions"]})
+    scored_from = origins[warmup_origins] if warmup_origins < len(origins) else None
+    by_key = {name: {(d["series_id"], d["origin"]): d for d in arm["decisions"]} for name, arm in arms.items()}
+    paired = [(k[1], m["served_loss"] - by_key["no_memory"][k]["served_loss"], m["served"] != by_key["no_memory"][k]["served"])
+              for k, m in by_key["memory"].items()
+              if k in by_key["no_memory"] and scored_from is not None and k[1] >= scored_from]
+
+    def switch_rate(decisions):
+        by_series = {}
+        for d in sorted(decisions, key=lambda d: d["origin"]):
+            by_series.setdefault(d["series_id"], []).append(d["served"])
+        changes = sum(sum(a != b for a, b in zip(v, v[1:])) for v in by_series.values())
+        steps = sum(max(len(v) - 1, 0) for v in by_series.values())
+        return round(changes / steps, 4) if steps else None
+
+    keys = [k for k in by_key['memory'] if k in by_key['no_memory']
+            and scored_from is not None and k[1] >= scored_from]
+    scored = {name: [rows[k] for k in keys] for name, rows in by_key.items()}
+    def average(values):
+        return sum(values) / len(values) if values else None
+    fixed = {p: average([d['losses'][p] for d in scored['memory']])
+             for p in [policy['baseline'], *policy['candidates']]}
+    result = {"folds_compared": len(paired), "warmup_origins": warmup_origins,
+              "scored_from": scored_from,
+              "memory_score": average([d['served_loss'] for d in scored['memory']]),
+              "no_memory_score": average([d['served_loss'] for d in scored['no_memory']]),
+              "fixed_provider_scores": fixed,
+              "memory_evidence_levels": {level: sum(d['evidence_level'] == level for d in scored['memory'])
+                                         for level in sorted({d['evidence_level'] for d in scored['memory']})},
+              "served_differently_share": round(sum(c for _, _, c in paired) / len(paired), 4) if paired else None,
+              "switch_rate": {name: switch_rate(ds) for name, ds in scored.items()}}
+    if not paired:
+        return {**result, "verdict": "no_comparable_folds"}
+    by_origin = {}
+    for origin, diff, _ in paired:
+        by_origin.setdefault(origin, []).append(diff)
+    groups = list(by_origin.values())
+    rng = random.Random(seed)
+    boots = []
+    for _ in range(n_boot):
+        sample = [x for _ in groups for x in groups[rng.randrange(len(groups))]]
+        boots.append(sum(sample) / len(sample))
+    boots.sort()
+    lo, hi = boots[int(0.05 * n_boot)], boots[min(n_boot - 1, int(0.95 * n_boot))]
+    mean_diff = sum(d for _, d, _ in paired) / len(paired)
+    best_fixed = min((v for v in result["fixed_provider_scores"].values() if v is not None), default=None)
+    verdict = "memory_better" if hi < 0 else "memory_worse" if lo > 0 else "not_distinguishable"
+    return {**result, "mean_loss_difference": mean_diff, "difference_ci90": [lo, hi],
+            "memory_beats_best_fixed": (result["memory_score"] is not None and best_fixed is not None
+                                        and result["memory_score"] < best_fixed),
+            "verdict": verdict}

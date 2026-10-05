@@ -4,11 +4,14 @@
 
 # Gnomon
 
+<!-- mcp-name: io.github.TensorLink-AI/gnomon -->
+
 ## Know more than the prediction.
 
-Gnomon helps people and AI agents inspect time-series data, run their chosen models,
-challenge forecasts against honest baselines, and preserve the evidence behind every
-result.
+Inspect time series, forecast with your models, compare forecasts, and review observed outcomes.
+
+Gnomon gives people and AI agents a shared Python, CLI and MCP interface, with
+recorded evidence behind the results.
 
 Use your own forecasting software. Add a remote service or a persistent ledger
 when you need one.
@@ -18,17 +21,71 @@ when you need one.
 Python 3.11–3.13. No required third-party dependencies.
 
 ```bash
-python -m pip install 'gnomon-forecast==1.3.0'
+python -m pip install 'gnomon-forecast==1.4.0'
 gnomon infer --provider last_value --request '{"history":[10,12,11],"horizon":2}'
 ```
 
 From a checkout, use `python -m pip install .`; this also works before the
-versioned package is published.
+versioned package is published. These docs describe the checkout, which may contain
+changes newer than an installed release. Use `gnomon environment` and
+`gnomon capabilities` to check the installed build and supported operations.
 The forecast command runs an offline baseline.
 To use your own local model, install Gnomon in the **same Python environment** as
 the model and its dependencies, then run that environment's `gnomon` or
 `python -m gnomon`. An isolated Gnomon environment cannot import PyTorch or
 another model library installed elsewhere.
+
+## Connect an agent
+
+[Agent reading index](llms.txt) · [Copyable MCP configurations](integrations/mcp/README.md)
+
+Use the [main agent workflow](skills/use-gnomon/SKILL.md) for connected tools,
+or [Python forecasting](skills/forecast-with-gnomon/SKILL.md) for scripts.
+The workflow is: **inspect → recall relevant evidence → forecast or compare →
+explain → review observed outcomes**. Skip steps the task does not need.
+A one-off calculation needs neither a ledger nor a model comparison.
+
+Run `gnomon mcp serve` in your agent host. The agent gets 6 tools by default:
+
+- `gnomon_inspect`: check data and freeze a reusable snapshot.
+- `gnomon_describe`: calculate an observed statistic.
+- `gnomon_capabilities`: find available models and their limits.
+- `gnomon_forecast`: run the selected model.
+- `gnomon_evaluate`: compare models on past data with an explicit budget.
+- `gnomon_read`: retrieve saved results without running the model again.
+
+A ledger adds `gnomon_ledger`, `gnomon_route` and `gnomon_memory`;
+optional time calculations add `gnomon_temporal`. Discover the tools actually
+available in the session instead of assuming every feature is enabled.
+
+Forecasting and evidence operations return an `agent_summary` (or an
+`agent_summary_read` call): the task scope, result, supporting evidence,
+limitations and available follow-ups. Large details
+remain retrievable without rerunning models. The host supplies observed outcomes
+and decides when to review them; follow-ups do not run automatically.
+
+Start the server with the [MCP quickstart](docs/quickstart-mcp.md).
+[Response semantics and schema discovery](docs/agent-operations.md) explain how
+to read results and recover from errors. Python, CLI and MCP share the session's
+execution contract; low-level Python engine/ledger objects retain native results.
+
+## Find the right workflow
+
+| Task | Start here |
+| --- | --- |
+| Install or verify the Python environment | [Installation](docs/installation.md) |
+| Complete a first forecast and outcome review | [First run](docs/getting-started.md) |
+| Use connected tools as an agent | [Use Gnomon](skills/use-gnomon/SKILL.md) |
+| Forecast and save results in Python | [Python skill](skills/forecast-with-gnomon/SKILL.md) · [API](docs/python-api.md) |
+| Compare models on past observations | [Local evidence workflow](docs/local-evidence-workflow.md) |
+| Configure a router that learns from outcomes | [Adaptive routing](docs/adaptive-routing.md) |
+| Review recorded outcomes or recall lessons | [Ledger skill](skills/use-gnomon-ledger/SKILL.md) · [Memory](docs/memory-bridge.md) |
+| Research forecast-led trading | [Trading skill](skills/trade-with-gnomon/SKILL.md) |
+| Find an exact argument or resolve an error | [CLI/schema reference](docs/cli-reference.md) · [Troubleshooting](docs/troubleshooting.md) |
+
+[All guides](docs/README.md) group the detailed contracts and worked examples by task.
+
+## Bring your own model
 
 Register your model as a callable:
 
@@ -56,33 +113,13 @@ such as `+00:00`; each actual must use the forecast's exact `series_id`, unit an
 one of its future timestamps. The [first-run guide](docs/getting-started.md#record-and-score-a-forecast)
 shows the complete CLI loop.
 
-## Connect an agent
-
-Start with the [agent operation guide](docs/agent-operations.md), including cache
-and configuration diagnostics, strict routing, independent verification, and
-[revised-vintage rescoring](docs/revised-vintage-workflow.md). The installed
-`gnomon providers example` and `python -m gnomon.examples.mcp_workflow` demonstrate
-custom providers and verified MCP pagination without external services.
-
-Run `gnomon mcp serve` in your agent host. The agent gets 6 tools by default:
-
-- `gnomon_inspect`: check data and freeze a reusable snapshot.
-- `gnomon_describe`: calculate an observed statistic.
-- `gnomon_capabilities`: find available models and their limits.
-- `gnomon_forecast`: run the selected model.
-- `gnomon_evaluate`: compare models on past data with an explicit budget.
-- `gnomon_read`: retrieve saved results without running the model again.
-
-Python, CLI and MCP share the same interface.
-Start with the [MCP quickstart](docs/quickstart-mcp.md)
-and [agent skill](skills/use-gnomon/SKILL.md).
-
-For Hermes, `gnomon connect ephemeris --install-hermes-skill` installs optional
-[native secure Ephemeris setup](docs/ephemeris-onboarding.md#native-hermes-setup).
-After opt-in, Hermes prompts privately for the key and the agent completes the
-connection; the key never needs to be pasted into chat.
-
 ## Optional connectors
+
+Local models need no account. To connect optional Ephemeris models, run
+`gnomon connect ephemeris`; enter credentials in the hidden terminal prompt.
+For Hermes, `gnomon connect ephemeris --install-hermes-skill` installs native
+secure setup. See [connection setup](docs/ephemeris-onboarding.md).
+
 
 Ephemeris is one connector for remote time-series inference. Set its deployment
 URL and credentials in operator configuration; they are never agent tool arguments.
@@ -99,7 +136,13 @@ StatsForecast and Ephemeris integration examples.
 The optional SQLite ledger saves forecasts, revised actuals, scores and decisions.
 Later corrections do not overwrite earlier predictions. You can ask what was known
 at a particular time, find forecasts that need scoring, and compare models on
-matched past results. No automatic retraining or model calls are involved.
+matched past results. Reading stored evidence does not rerun models. Gnomon does
+not automatically retrain them.
+
+Two kinds of memory serve different purposes: [router episodic memory](docs/adaptive-routing.md#episodic-memory)
+uses similar completed forecasts to select a model; [agent evidence recall](docs/memory-bridge.md)
+returns recorded decisions and lessons for an agent to inspect. Recalling a lesson
+does not itself choose a model or validate its written explanation.
 
 Optional date and time tools handle timezones, calendar shifts, intervals and event
 order. They calculate supplied facts; they do not claim to improve an LLM's reasoning.
@@ -115,15 +158,3 @@ of calibrated uncertainty. See [validation and limits](docs/agent-evaluation.md)
 - [Changelog](CHANGELOG.md)
 
 *A gnomon is the part of a sundial that casts the shadow.*
-
-Decision memory: [structured summaries, context comparisons, outcome reviews and portable lessons](docs/decision-memory.md). Run `python -m gnomon.examples.decision_memory` in a fresh directory for the offline example.
-
-### Optional Ephemeris connection
-
-Local models need no account. To sign up for additional remote forecasting
-models and securely save your API key, run `gnomon connect ephemeris`.
-MCP capabilities expose the same optional signup link for agents; keys are
-entered in a human terminal, never in chat. See
-[connection setup](docs/ephemeris-onboarding.md).
-
-Read-only evidence recall: [`gnomon memory` and `gnomon_memory`](docs/memory-bridge.md#cli-mcp-and-automatic-recall), with an optional [Hermes pre-turn plugin](integrations/hermes/gnomon-memory/README.md) for project-scoped automatic context.
