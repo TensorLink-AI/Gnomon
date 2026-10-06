@@ -80,6 +80,7 @@ execution contract; low-level Python engine/ledger objects retain native results
 | Forecast and save results in Python | [Python skill](skills/forecast-with-gnomon/SKILL.md) · [API](docs/python-api.md) |
 | Compare models on past observations | [Local evidence workflow](docs/local-evidence-workflow.md) |
 | Configure a router that learns from outcomes | [Adaptive routing](docs/adaptive-routing.md) |
+| Review measured gains from episodic memory | [Benchmark results and confidence intervals](docs/memory-benchmarks.md) |
 | Review recorded outcomes or recall lessons | [Ledger skill](skills/use-gnomon-ledger/SKILL.md) · [Memory](docs/memory-bridge.md) |
 | Research forecast-led trading | [Trading skill](skills/trade-with-gnomon/SKILL.md) |
 | Find an exact argument or resolve an error | [CLI/schema reference](docs/cli-reference.md) · [Troubleshooting](docs/troubleshooting.md) |

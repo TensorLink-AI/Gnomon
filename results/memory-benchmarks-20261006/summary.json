@@ -1,0 +1,149 @@
+{
+  "datasets": {
+    "electricity_D": {
+      "memory_mase": 1.5879952732734854,
+      "no_memory_mase": 1.5762993360144149,
+      "error_reduction_percent": -0.7419870700855036,
+      "series": 30,
+      "scored_windows": 600,
+      "frequency": "D",
+      "forecast_horizon": 30,
+      "origin_stride": 7,
+      "season": 7,
+      "manifest_sha256": "385f2a9f415285148b3c59beccbf9f2cb86d4d473d4f3b5f634d0215519a7aa5"
+    },
+    "SZ_TAXI_H": {
+      "memory_mase": 0.47482930625808245,
+      "no_memory_mase": 0.4998607984945393,
+      "error_reduction_percent": 5.007692603990089,
+      "series": 30,
+      "scored_windows": 600,
+      "frequency": "H",
+      "forecast_horizon": 48,
+      "origin_stride": 12,
+      "season": 24,
+      "manifest_sha256": "2cfacfca1b40c0dcdf9ff01964a0f4e10cfe586b9913ed8d4305f613afddc23e"
+    },
+    "jena_weather_H": {
+      "memory_mase": 0.8067219468825129,
+      "no_memory_mase": 0.8896337217460684,
+      "error_reduction_percent": 9.319765296309368,
+      "series": 21,
+      "scored_windows": 420,
+      "frequency": "H",
+      "forecast_horizon": 96,
+      "origin_stride": 24,
+      "season": 24,
+      "manifest_sha256": "0b9a4c722feb03ffe3a380ffef19c51b97357aa004713e60f12b013e71d4497b"
+    },
+    "bizitobs_application": {
+      "memory_mase": 0.3939032783502187,
+      "no_memory_mase": 0.5350511218869463,
+      "error_reduction_percent": 26.38025372957753,
+      "series": 2,
+      "scored_windows": 40,
+      "frequency": "10S",
+      "forecast_horizon": 60,
+      "origin_stride": 15,
+      "season": 60,
+      "manifest_sha256": "d35dcaad48d58ed2a8d1cae68d3f18d66abcfd4a5698b6241572f779c8e516d9"
+    },
+    "hospital": {
+      "memory_mase": 0.7507443594327421,
+      "no_memory_mase": 0.7767448127419525,
+      "error_reduction_percent": 3.3473610486599026,
+      "series": 30,
+      "scored_windows": 600,
+      "frequency": "M",
+      "forecast_horizon": 12,
+      "origin_stride": 1,
+      "season": 12,
+      "manifest_sha256": "99982ceb95702183261da0ad95a6df5b474fcb29b7a0c85af5049872a764041e"
+    },
+    "hierarchical_sales_D": {
+      "memory_mase": 0.826456731034446,
+      "no_memory_mase": 0.8978644790731585,
+      "error_reduction_percent": 7.95306526798174,
+      "series": 30,
+      "scored_windows": 600,
+      "frequency": "D",
+      "forecast_horizon": 30,
+      "origin_stride": 7,
+      "season": 7,
+      "manifest_sha256": "1cd1d0caa1a8a905bbb6747e2c4838bef0277daff9c0182b13f85a590bfbeaca"
+    }
+  },
+  "benchmarks": 6,
+  "bootstrap_resamples": 46656,
+  "arithmetic_mean_improvement_percent": 8.544358479405522,
+  "arithmetic_mean_95ci_percent": [
+    2.8379217290611454,
+    16.17305078521097
+  ],
+  "geometric_mean_improvement_percent": 8.986707702027319,
+  "geometric_mean_95ci_percent": [
+    2.9168216603789765,
+    16.811838633833364
+  ],
+  "median_benchmark_improvement_percent": 6.4803789359859145,
+  "source_sha256": "8bc1495396b5b3a43086277157be7d2dfe25d008a86901803060be3915fa891b",
+  "protocol": {
+    "comparison": "Corrected simple episodic memory versus matched no-memory baseline, all six datasets. Retail observed-target masking retained.",
+    "primary_statistic": "Arithmetic mean of the six within-benchmark relative error reductions: mean(100*(1-memory_MASE/no_memory_MASE)). Each benchmark gets equal weight.",
+    "bootstrap_unit": "Entire benchmark dataset. Do not treat series or overlapping forecast windows as independent observations.",
+    "bootstrap": "Exact empirical nonparametric cluster bootstrap: enumerate every ordered sample of six benchmarks drawn with replacement from the six benchmarks (6**6 = 46656). Two-sided percentile 95% interval; numpy linear quantiles.",
+    "secondary_statistic": "Geometric mean error ratio, expressed as percentage reduction: 100*(1-exp(mean(log(memory/no_memory)))).",
+    "limits": "Descriptive uncertainty across these six previously inspected benchmark datasets; not a confidence guarantee for unseen domains or a correction for configuration selection. This is not a within-benchmark time-block bootstrap."
+  },
+  "evaluation_date": "2026-10-06",
+  "dataset_repo": "Salesforce/GiftEval",
+  "dataset_revision": "30841734ac5cfddbd0c3bad6d09d2b6b32becbb0",
+  "retail_target_coverage": {
+    "candidate_failures": 0,
+    "validation_windows": 240,
+    "validation_observed_targets": 6840,
+    "validation_planned_targets": 7200,
+    "validation_fully_observed_windows": 0,
+    "warmup_windows": 240,
+    "warmup_observed_targets": 7170,
+    "warmup_planned_targets": 7200,
+    "warmup_fully_observed_windows": 210,
+    "score_windows": 600,
+    "score_observed_targets": 17580,
+    "score_planned_targets": 18000,
+    "score_fully_observed_windows": 240
+  },
+  "memory_configuration": {
+    "profile": "levels",
+    "distance": "robust",
+    "k": 32,
+    "pool": true,
+    "own_weight": 1,
+    "min_effective_n": 8,
+    "long_window": {
+      "default": 512,
+      "hospital": 37,
+      "SZ_TAXI_H": 276
+    },
+    "short_window": "max(4, season)",
+    "regime": false,
+    "shrinkage": 0,
+    "confidence_z": 0,
+    "novelty_threshold": null,
+    "switch_penalty": 0,
+    "dedupe_seconds": 0,
+    "recency_half_life_days": 0,
+    "retention": "window"
+  },
+  "models": [
+    "last_value",
+    "seasonal_naive",
+    "drift",
+    "auto_ets",
+    "theta",
+    "croston_sba",
+    "ridge",
+    "random_forest",
+    "hist_gradient_boosting"
+  ]
+}
