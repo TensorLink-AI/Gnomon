@@ -27,6 +27,7 @@ and discover the current schemas through `gnomon capabilities` or MCP `tools/lis
 - [Complete local evidence workflow](local-evidence-workflow.md): inspect, compare, route and score.
 - [MCP evidence workflow](mcp-evidence-workflow.md): the same work over a persistent stdio session.
 - [Adaptive routing](adaptive-routing.md): configured model selection using recorded outcomes and episodic memory.
+- [Memory benchmark results](memory-benchmarks.md): per-task accuracy, corrected coverage and bootstrap uncertainty across six forecasting benchmarks.
 - [Revised-vintage rescoring](revised-vintage-workflow.md): score saved predictions against revised actuals.
 - [Final-answer preservation](final-selection.md): bind an agent's answer to the forecast it actually ran.
 

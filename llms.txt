@@ -22,6 +22,7 @@ Start with the task, not every document. Use `gnomon capabilities --task forecas
 - [Model comparisons](https://github.com/TensorLink-AI/Gnomon/blob/main/docs/local-evidence-workflow.md): local inspect/evaluate/route/score example.
 - [Ledger and outcomes](https://github.com/TensorLink-AI/Gnomon/blob/main/skills/use-gnomon-ledger/SKILL.md): matched evidence, pending/partial/complete scoring and lessons.
 - [Adaptive routing](https://github.com/TensorLink-AI/Gnomon/blob/main/docs/adaptive-routing.md): configure model selection using matured forecast outcomes.
+- [Memory benchmark results](https://github.com/TensorLink-AI/Gnomon/blob/main/docs/memory-benchmarks.md): six-task episodic-memory comparison, task backgrounds, corrected coverage and bootstrap intervals.
 - [Trading workflow](https://github.com/TensorLink-AI/Gnomon/blob/main/skills/trade-with-gnomon/SKILL.md): separate forecast evidence from trade execution and net results.
 - [Ephemeris setup](https://github.com/TensorLink-AI/Gnomon/blob/main/skills/setup-gnomon-ephemeris/SKILL.md): optional remote connector configuration.
 

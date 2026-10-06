@@ -3,6 +3,10 @@
 Gnomon establishes executable contracts and regression behavior, not forecasting
 superiority, improved LLM reasoning or permission to act.
 
+For the six-task comparison of router episodic memory with a matched no-memory
+baseline, see [memory benchmark results](memory-benchmarks.md), including task
+backgrounds, corrected coverage and bootstrap uncertainty.
+
 ## Tested behavior
 
 Production tests cover request/result alignment, unsupported inputs, cutoffs,
