@@ -1,0 +1,3 @@
+{$GNOMON_HOSTNAME} {
+    reverse_proxy gnomon:8765
+}

@@ -4,7 +4,7 @@
       "command": "uvx",
       "args": [
         "--from",
-        "gnomon-forecast==1.4.0",
+        "gnomon-forecast==1.4.1.dev0",
         "gnomon",
         "mcp",
         "serve"

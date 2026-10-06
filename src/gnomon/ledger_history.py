@@ -94,7 +94,7 @@ def compare_history(ledger, *, series_id, horizon, providers, start, end, source
     with ledger._connect() if _connection is None else nullcontext(_connection) as conn:
         # One SQLite read snapshot: every origin/candidate sees the same revisions.
         if _connection is None:
-            conn.execute("BEGIN")
+            ledger._begin(conn)
         rows = conn.execute("SELECT e.execution_id, " + origin_expr + " AS origin, "
             "EXISTS(SELECT 1 FROM study_executions s JOIN studies t USING(study_id) "
             "WHERE s.execution_id=e.execution_id AND t.recorded_at<=?) AS study_run "

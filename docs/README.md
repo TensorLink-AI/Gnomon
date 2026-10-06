@@ -7,6 +7,9 @@ covers tool use; specialist skills add Python, ledger, trading or connector deta
 These pages describe the checkout. For an installed release, check `gnomon environment`
 and discover the current schemas through `gnomon capabilities` or MCP `tools/list`.
 
+- [Shared hosting and Ditto](hosting/README.md)
+
+
 ## Start and connect
 
 | Need | Guide |

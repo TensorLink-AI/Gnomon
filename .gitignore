@@ -93,3 +93,8 @@ results/short-history-guardrail/raw/
 # Local content-addressed context receipts and numeric assessment cache.
 # These can contain operational source metadata and are never source files.
 /.gnomon/
+
+# Optional self-hosted service quickstart state (contains project evidence).
+/shared-state/
+/.venv-hosted/
+!services/hosted/deployment/.env.example

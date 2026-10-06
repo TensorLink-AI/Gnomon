@@ -9,6 +9,7 @@ or an assertion that a model is calibrated or an action authorized.
 from __future__ import annotations
 
 from contextlib import contextmanager
+from contextvars import ContextVar
 import base64
 from datetime import datetime, timezone
 import hashlib
@@ -64,6 +65,7 @@ class TemporalLedger:
     APPLICATION_ID = 0x474E4F4D
 
     def __init__(self, path: str | Path, *, clock=None, create=True):
+        self._transaction_connection = ContextVar("gnomon_ledger_transaction", default=None)
         self.path = Path(path).expanduser()
         self._create = create
         self._committed_row_writes = 0
@@ -76,7 +78,7 @@ class TemporalLedger:
         self.clock = clock or SYSTEM_CLOCK
         with self._connect() as conn:
             if create:
-                conn.execute("BEGIN IMMEDIATE")
+                self._begin(conn, immediate=True)
             version = conn.execute("PRAGMA user_version").fetchone()[0]
             application = conn.execute("PRAGMA application_id").fetchone()[0]
             if not create:
@@ -148,8 +150,42 @@ class TemporalLedger:
             conn.execute(f"PRAGMA user_version={self.SCHEMA_VERSION}")
             conn.execute(f"PRAGMA application_id={self.APPLICATION_ID}")
 
+    @staticmethod
+    def _begin(conn, *, immediate=False):
+        if not conn.in_transaction:
+            conn.execute("BEGIN IMMEDIATE" if immediate else "BEGIN")
+
+    @contextmanager
+    def transaction(self):
+        """Atomic SQLite extension transaction sharing this ledger's core operations.
+
+        Yields a SQLite connection for application-owned tables in the same database.
+        Core operations on this instance join the transaction with savepoints. Do not
+        modify core tables directly, commit the connection, await, or call a provider
+        inside this context. Use one ledger instance per synchronous request.
+        """
+        with self._connect() as conn:
+            self._begin(conn, immediate=True)
+            token = self._transaction_connection.set(conn)
+            try:
+                yield conn
+            finally:
+                self._transaction_connection.reset(token)
+
     @contextmanager
     def _connect(self):
+        shared = self._transaction_connection.get()
+        if shared is not None:
+            savepoint = "nested_" + uuid4().hex
+            shared.execute("SAVEPOINT " + savepoint)
+            try:
+                yield shared
+            except BaseException:
+                shared.execute("ROLLBACK TO " + savepoint)
+                raise
+            finally:
+                shared.execute("RELEASE " + savepoint)
+            return
         conn = sqlite3.connect(self.path.resolve().as_uri() + ("?mode=rwc" if self._create else "?mode=rw"),
                                uri=True, timeout=30)
         conn.row_factory = sqlite3.Row
@@ -256,7 +292,7 @@ class TemporalLedger:
             rows = [dict(series_id=series_id, valid_time=valid_time, value=value,
                          source_available_at=source_available_at, unit=unit, source_ref=source_ref)]
         with self._connect() as conn:
-            conn.execute("BEGIN IMMEDIATE")
+            self._begin(conn, immediate=True)
             ids = [self._append_actual(conn, **row) for row in rows]
         return ids if actuals is not None else ids[0]
 
@@ -280,6 +316,19 @@ class TemporalLedger:
         conn.execute("INSERT INTO actuals VALUES (?,?,?,?,?,?,?,?,?)",
                      (actual_id, series_id, valid, available, self._now(), float(value), unit, source_ref, revision))
         return actual_id
+
+    def actual(self, actual_id: str) -> dict:
+        """Resolve one immutable observation revision, rather than the latest value."""
+        with self._connect() as conn:
+            row = conn.execute("SELECT * FROM actuals WHERE actual_id=?", (actual_id,)).fetchone()
+        if row is None:
+            raise ForecastAdapterError("unknown actual_id")
+        record = dict(row)
+        identity = _json([record["series_id"], record["valid_time"], record["source_available_at"],
+                          float(record["value"]), record["unit"], record["source_ref"]])
+        if hashlib.sha256(identity.encode()).hexdigest() != actual_id:
+            raise ForecastAdapterError("actual payload failed integrity verification")
+        return record
 
     def actuals_as_of(self, series_id: str, *, source_as_of: str | None = None,
                      recorded_as_of: str | None = None, unit: str | None = None) -> list[dict]:
@@ -322,7 +371,7 @@ class TemporalLedger:
         source_as_of = _time(source_as_of, "source_as_of") if source_as_of is not None else None
         recorded_as_of = _time(recorded_as_of, "recorded_as_of") if recorded_as_of is not None else None
         with self._connect() as conn:
-            conn.execute("BEGIN IMMEDIATE")
+            self._begin(conn, immediate=True)
             scores = [self._evaluate(conn, eid, source_as_of, recorded_as_of, allow_partial,
                                      include_current_coverage) for eid in ids]
         return scores if execution_ids is not None else scores[0]
@@ -430,7 +479,7 @@ class TemporalLedger:
         recorded = _time(recorded_as_of) if recorded_as_of is not None else now
         rows = []
         with self._connect() as conn:
-            conn.execute("BEGIN")
+            self._begin(conn)
             for row in conn.execute("SELECT execution_id FROM executions WHERE recorded_at<=? ORDER BY rowid", (recorded,)):
                 summary = self._summary(conn, self._execution(conn, row[0]), source, recorded)
                 if summary["status"] not in {"scored", "scored_in_study"}:
@@ -509,7 +558,7 @@ class TemporalLedger:
         identity = hashlib.sha256(_json([series_id, horizon, provider, unit, start, end, status,
                                         source_as_of, recorded_as_of]).encode()).hexdigest()
         with self._connect() as conn:
-            conn.execute("BEGIN")
+            self._begin(conn)
             if cursor is not None:
                 try:
                     if not isinstance(cursor, str) or len(cursor) > 2048:
@@ -568,7 +617,7 @@ class TemporalLedger:
         if len(execution_ids) < 2 or len(set(execution_ids)) != len(execution_ids):
             raise ForecastAdapterError("comparison requires at least two distinct executions")
         with self._connect() as conn:
-            conn.execute("BEGIN")
+            self._begin(conn)
             runs = [self._execution(conn, eid) for eid in execution_ids]
             return self._compare(conn, runs, source_as_of, recorded_as_of)
 
@@ -694,6 +743,29 @@ class TemporalLedger:
             start=start, end=end, source_as_of=source_as_of, recorded_as_of=recorded_as_of,
             context_candidates=context_candidates, min_origins=min_origins, unit=unit,
             metric=metric, recent_origins=recent_origins, negative_predictions=negative_predictions)
+
+    def evidence_snapshot(self, *, decision_id, source_as_of, recorded_as_of):
+        """Read decision, forecast and eligible actuals atomically, without scoring.
+
+        Returns the latest eligible revision for each forecast target at explicit
+        source/recording cutoffs. Recording times remain server-owned evidence.
+        """
+        source, recorded = _time(source_as_of), _time(recorded_as_of)
+        with self.transaction() as conn:
+            decision = self.decision(decision_id, source_as_of=source, recorded_as_of=recorded)
+            execution = self.execution(decision['inputs']['execution_id'])
+            if execution['recorded_at'] > recorded:
+                raise ForecastAdapterError('Execution was not recorded by this cutoff')
+            request = execution['request']
+            times = request['future_timestamps']
+            if not times:
+                raise ForecastAdapterError('Snapshot requires explicit forecast targets')
+            targets = {_time(t) for t in times}
+            actuals = self._actuals(conn, request['series_id'], source, recorded,
+                                   request.get('unit'), sorted(targets))
+            return {'kind': 'evidence_snapshot/1', 'decision': decision, 'execution': execution,
+                    'actuals': [a for a in actuals if a['valid_time'] in targets],
+                    'source_as_of': source, 'recorded_as_of': recorded}
 
     def review_decision(self, *, decision_id, source_as_of, recorded_as_of):
         """Read a review packet; review_ready means complete actuals, not a proven explanation."""

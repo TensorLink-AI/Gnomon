@@ -31,7 +31,7 @@ def retrieve_context(ledger, *, context_candidates, min_origins=4, **query):
     comparisons = []
     times, executions = {}, {}
     with ledger._connect() as conn:
-        conn.execute('BEGIN')
+        ledger._begin(conn)
         for filters in candidates:
             comparisons.append(compare_history(ledger, context_filters=filters or None,
                                                 _connection=conn, _time_cache=times,

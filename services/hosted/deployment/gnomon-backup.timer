@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Gnomon staging backup
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 UTC
+RandomizedDelaySec=300
+Persistent=true
+Unit=gnomon-backup.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,11 @@
+{
+  "clients": 4,
+  "unique_writes": 40,
+  "exact_retries": 40,
+  "errors": 0,
+  "wall_seconds": 3.01,
+  "median_request_seconds": 0.0694,
+  "p95_request_seconds": 0.111,
+  "max_request_seconds": 0.1471,
+  "scope": "fresh MCP sessions, local SQLite, synthetic actuals; not production capacity"
+}

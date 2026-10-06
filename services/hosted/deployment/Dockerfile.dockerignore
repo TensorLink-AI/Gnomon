@@ -1,0 +1,13 @@
+.git
+**/.env
+**/.env.*
+**/.venv
+**/__pycache__
+**/*.pyc
+**/*.db
+**/*.db-*
+results
+benchmarks
+.tmp
+.venv
+dist

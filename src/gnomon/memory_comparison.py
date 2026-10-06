@@ -66,7 +66,7 @@ def comparison_card(bridge, *, execution_ids, source_as_of, recorded_as_of, metr
             excluded.append({'reason': 'more_than_eight_candidates_select_explicit_ids'})
             continue
         with bridge.ledger._connect() as conn:
-            conn.execute('BEGIN')
+            bridge.ledger._begin(conn)
             matched = bridge.ledger._compare(conn, runs, source, recorded)
             _, pairs = bridge.ledger._pairs(conn, runs[0]['request'], source, recorded)
             if metric == 'rmsle':
@@ -104,7 +104,7 @@ def comparison_card(bridge, *, execution_ids, source_as_of, recorded_as_of, metr
                 if len(chosen) != len(identities):
                     continue
                 with bridge.ledger._connect() as conn:
-                    conn.execute('BEGIN')
+                    bridge.ledger._begin(conn)
                     comparison = bridge.ledger._compare(conn, chosen, source, recorded)
                     _, pairs = bridge.ledger._pairs(conn, request, source, recorded)
                 if comparison['n'] != request['horizon']:

@@ -1,0 +1,13 @@
+[Unit]
+Description=Encrypted Gnomon snapshot to private R2
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=root
+UMask=0077
+EnvironmentFile=/srv/gnomon/backup.env
+ExecStart=/srv/gnomon/backup-venv/bin/python /srv/gnomon/r2_backup.py --container gnomon-staging --image gnomon-hosted:68c0f2c9 --data /srv/gnomon/data --work /srv/gnomon/backup-work --metadata /srv/gnomon/deployment.json
+ExecStopPost=/usr/bin/docker start gnomon-staging
+TimeoutStartSec=30min

@@ -1,0 +1,46 @@
+{
+  "kind": "hosted-ledger-validation/1",
+  "status": "passed",
+  "probe_sha256": "4d82ecbdb187e15bbd2cf94b0120fd8bb1defdfefe981643ded64052572231fa",
+  "environment": {
+    "python": "3.13.11",
+    "sqlite": "3.50.4",
+    "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.39"
+  },
+  "scope": "Core SQLite only; no hosted server, authorization, MCP, Ditto or provider network calls.",
+  "synthetic_clock": true,
+  "concurrency": {
+    "journal_mode": "DELETE",
+    "workers": 4,
+    "distinct_writes": 400,
+    "exact_retries": 400,
+    "elapsed_seconds_including_process_startup": 2.5069869270009804,
+    "median_ms_write_and_retry": 5.614761001197621,
+    "p95_ms_write_and_retry": 8.561823997297324,
+    "max_ms_write_and_retry": 1337.5891180039616,
+    "revision_sequence_complete": true
+  },
+  "handoff": {
+    "pending_then_complete": true,
+    "premature_lesson_rejected": true,
+    "mae": 1.5
+  },
+  "snapshot": {
+    "journal_mode": "WAL",
+    "writer_committed_during_review": true,
+    "review_mae": 1.5
+  },
+  "restore": {
+    "old_mae": 1.5,
+    "revised_mae": 4.5,
+    "saved_lesson_unchanged": true,
+    "elapsed_seconds_including_verification_process": 0.12790292799763847,
+    "database_bytes": 249856
+  },
+  "limitations": [
+    "Tiny synthetic ledger, not a capacity certification.",
+    "Process reopening is tested; no actual hosted server exists in this probe.",
+    "Backup contains no external artifacts or credentials.",
+    "No kill-during-commit or provider/response fault injection."
+  ]
+}

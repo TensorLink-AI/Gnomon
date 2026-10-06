@@ -1,0 +1,90 @@
+name: Hosted MCP container
+
+on:
+  pull_request:
+  push:
+    tags: ['hosted-v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hosted-container-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  hosted:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: docker/setup-buildx-action@v3
+      - name: Check release identity
+        id: version
+        env:
+          RELEASE_REF: ${{ github.ref }}
+          RELEASE_NAME: ${{ github.ref_name }}
+        run: |
+          python - <<'PY'
+          import os, tomllib
+          from pathlib import Path
+          version = tomllib.loads(Path('services/hosted/pyproject.toml').read_text())['project']['version']
+          if os.environ['RELEASE_REF'].startswith('refs/tags/'):
+              assert os.environ['RELEASE_NAME'] == 'hosted-v' + version
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              out.write('version=' + version + '\n')
+          PY
+      - name: Test matching source packages
+        run: |
+          python -m pip install '.[dev]' ./services/hosted
+          ruff check services/hosted
+          pytest -q tests services/hosted/tests
+      - name: Build candidate
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/hosted/deployment/Dockerfile
+          build-args: |
+            GNOMON_BUILD_COMMIT=${{ github.sha }}
+          platforms: linux/amd64
+          load: true
+          tags: gnomon-hosted:candidate
+      - name: Test candidate with disposable persistent state
+        run: python services/hosted/scripts/container_smoke.py --image gnomon-hosted:candidate
+      - name: Log in to GHCR
+        if: startsWith(github.ref, 'refs/tags/hosted-v')
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish the tested image
+        if: startsWith(github.ref, 'refs/tags/hosted-v')
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          IMAGE=ghcr.io/tensorlink-ai/gnomon-hosted
+          docker tag gnomon-hosted:candidate "$IMAGE:$VERSION"
+          docker push "$IMAGE:$VERSION"
+          docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE:$VERSION" > image-digest.txt
+      - name: Attach deployment files to prerelease
+        if: startsWith(github.ref, 'refs/tags/hosted-v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          VERSION="${RELEASE_TAG#hosted-v}"
+          docker save "ghcr.io/tensorlink-ai/gnomon-hosted:$VERSION" | gzip > hosted-image.tar.gz
+          sha256sum hosted-image.tar.gz > hosted-image.tar.gz.sha256
+          cp services/hosted/deployment/compose.release.yaml compose.yaml
+          cp services/hosted/deployment/Caddyfile Caddyfile
+          cp services/hosted/deployment/.env.example env.example
+          cp docs/hosting/self-hosted-release.md SETUP.md
+          gh release create "$RELEASE_TAG" --prerelease --verify-tag \
+            --title "Gnomon hosted MCP $RELEASE_TAG" --notes-file SETUP.md \
+            compose.yaml Caddyfile env.example SETUP.md image-digest.txt hosted-image.tar.gz hosted-image.tar.gz.sha256

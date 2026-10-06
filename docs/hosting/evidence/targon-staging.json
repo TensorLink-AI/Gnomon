@@ -1,0 +1,125 @@
+{
+  "recorded_date": "2026-10-01",
+  "status": "staging_public_mcp_and_r2_restore_verified",
+  "commit": "68c0f2c9912403f27c43be570b71a19ed59323a2",
+  "image_id": "sha256:810960980af1ca61e1af5187a0298bde7922e2a5532d0dbdb4f54b4d3b280742",
+  "targon": {
+    "workload_id": "wrk-2n4619t6guld",
+    "name": "gnomon-shared-staging",
+    "resource": "cpu-small-amd",
+    "observed_hourly_cost_usd": 0.12,
+    "ssh_host": "160.202.128.197",
+    "ssh_port": 20000
+  },
+  "endpoint": "https://gnomon-staging.cascade.industries/mcp",
+  "public_endpoint_status": "Readiness 200, unauthenticated MCP 401, two independent pinned Hermes clients passed over public HTTPS; no security configuration changes made during retry",
+  "tunnel_id": "b20776f3-782b-4a17-91ad-01d15a3da1cf",
+  "r2": {
+    "bucket": "gnomon-staging-backups",
+    "public_access": false,
+    "upload_tested": true,
+    "scheduled_backup_enabled": true,
+    "upload_succeeded": true,
+    "list_access_verified": true,
+    "service_healthy_after_failure": true,
+    "restore_tested": true,
+    "receipt": {
+      "status": "ok",
+      "bucket": "gnomon-staging-backups",
+      "key": "staging/2026/10/01/102453-53ca54e3496d45a6b6c41898cee5612c.tar.age",
+      "sha256": "61d09d10688152baf312e369798d4bc9e9e2f1306dfa44f6dbc7cba478ad8af6",
+      "bytes": 368920,
+      "completed_at": "2026-10-01T10:24:55.917070+00:00",
+      "encryption": "age",
+      "readback_verified": true
+    },
+    "schedule": "03:00 UTC daily plus up to 300 seconds jitter",
+    "post_load_backup_receipt": {
+      "status": "ok",
+      "bucket": "gnomon-staging-backups",
+      "key": "staging/2026/10/01/103317-bdd6aa85f86b47a3868a275cdfb69b42.tar.age",
+      "sha256": "3260e23c628d1563f776911addb9a003419f9b31c05e54e0fa7fd4346dde4d72",
+      "bytes": 420136,
+      "completed_at": "2026-10-01T10:33:18.795514+00:00",
+      "encryption": "age",
+      "readback_verified": true
+    }
+  },
+  "acceptance": {
+    "transport": "Public HTTPS MCP; independent pinned Hermes clients on client machine and Targon VM",
+    "hermes_installations": "Independent pinned installations on client machine and Targon VM; real discovery/registry/transport, no LLM calls",
+    "execution_reference": {
+      "ledger_id": "ledger-6244b4c5b6d64c32b57a5a53744d0f17",
+      "project_id": "project-f0be3f0b25ee41af9b9d32ddc995a7a6",
+      "resource_id": "b34c5316-4ac5-4ae4-b901-eabf0361168a",
+      "resource_type": "execution",
+      "schema_version": "1",
+      "service_id": "service-02dddfc6e62a4ed28430c6e7b1886c1d"
+    },
+    "snapshot_reference": {
+      "schema_version": "1",
+      "service_id": "service-02dddfc6e62a4ed28430c6e7b1886c1d",
+      "project_id": "project-f0be3f0b25ee41af9b9d32ddc995a7a6",
+      "ledger_id": "ledger-6244b4c5b6d64c32b57a5a53744d0f17",
+      "resource_type": "evidence_snapshot",
+      "resource_id": "evidence_snapshot-4950a14cc6f41017f2c5edf0be20416dcfed2d4ba8bf5caefbb3585b23df5b2e"
+    },
+    "analysis_reference": {
+      "schema_version": "1",
+      "service_id": "service-02dddfc6e62a4ed28430c6e7b1886c1d",
+      "project_id": "project-f0be3f0b25ee41af9b9d32ddc995a7a6",
+      "ledger_id": "ledger-6244b4c5b6d64c32b57a5a53744d0f17",
+      "resource_type": "client_analysis",
+      "resource_id": "client_analysis-0527f8528bb66945ac31354be08b4ce5e2eaf7a926efec4d74e70f5a352a5701"
+    },
+    "ditto_memory_id": "22429278-0978-4c0a-9d5a-6c92cf57c1c9",
+    "independent_mae": 1,
+    "synthetic_fixture": true,
+    "cross_project_denied": true,
+    "vm_reboot_verified": true,
+    "boot_before": "44e53fca-d963-4cfa-9ef9-b921e959139f",
+    "boot_after": "afde9928-cfd9-4804-b422-2b4560222eba"
+  },
+  "restore": {
+    "status": "ok",
+    "restored_on": "separate machine from Targon VM",
+    "transport_of_backup": "R2 download on separate machine",
+    "archive_encryption": "age",
+    "service_id_preserved": "service-02dddfc6e62a4ed28430c6e7b1886c1d",
+    "old_tokens_rejected": true,
+    "execution_snapshot_analysis_resolved": true,
+    "local_mae": 1,
+    "cutover_performed": false
+  },
+  "backup_failure_tests": {
+    "passed": 3,
+    "checks": [
+      "snapshot failure restarts service",
+      "upload failure preserves previous success receipt",
+      "corrupt readback does not record success"
+    ]
+  },
+  "public_concurrency": {
+    "status": "ok",
+    "transport": "public HTTPS MCP",
+    "clients": 4,
+    "unique_writes": 32,
+    "exact_retries": 32,
+    "immutable_snapshot_reads": 32,
+    "errors": 0,
+    "wall_seconds": 28.856,
+    "median_seconds": 1.141,
+    "p95_seconds": 1.265,
+    "max_seconds": 2.019,
+    "series_id": "staging-concurrency-2830c248a42843208a13af5306f33524",
+    "valid_time": "2026-09-30T10:32:02.202391+00:00",
+    "scope": "Bounded synthetic staging probe; four processes sharing an outcome principal; not a capacity SLA or long-duration soak",
+    "persistence_checks": {
+      "actual_rows": 32,
+      "distinct_revisions": 32,
+      "receipt_survived_container_restart": true,
+      "public_readiness_recovered": true
+    },
+    "ditto_recall_after_restart": true
+  }
+}
