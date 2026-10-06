@@ -1,6 +1,6 @@
 services:
   gnomon:
-    image: gnomon-hosted:0.1.0b1
+    image: gnomon-hosted:0.1.0b2
     build:
       context: ../../..
       dockerfile: services/hosted/deployment/Dockerfile

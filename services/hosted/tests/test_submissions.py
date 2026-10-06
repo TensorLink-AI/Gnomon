@@ -83,7 +83,7 @@ def test_local_compute_restart_and_revision_over_real_mcp(tmp_path):
         saved = call(url, token, 'gnomon_hosted', analysis)
         assert saved['result']['analysis']['numerically_verified'] is False
     runtime.call(identity, 'gnomon_ledger', {'operation': 'append_actual', 'series_id': 's', 'unit': 'widgets',
-        'valid_time': args['request']['future_timestamps'][0], 'source_available_at': now(), 'value': 9, 'idempotency_key': 'revision'})
+        'valid_time': args['request']['future_timestamps'][0], 'source_available_at': snap['snapshot']['actuals'][0]['source_available_at'], 'value': 9, 'idempotency_key': 'revision'})
     fresh = snapshot(runtime, identity, d, 'new')
     assert score_snapshot(fresh['snapshot'])['metrics']['mae'] == 7
     with serving(store.root) as url:

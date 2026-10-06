@@ -126,3 +126,56 @@ See [local computation](local-computation.md) for `forecast.submit`, `snapshot.s
 `analysis.submit`, the `gnomon-shared` CLI, and exporting a client analysis using
 `export.enqueue` with `analysis_id`. Client analyses remain numerically unverified,
 including on Ditto recall; original snapshots and revised evidence are separate.
+
+## Discover exact contracts and deployment capabilities
+
+Start with `gnomon_hosted`:
+
+```json
+{"action":"info"}
+```
+
+The response identifies hosted/core versions, build identity, project permissions,
+available actions, built-in providers, explicitly configured provider names and
+Ditto configuration/credential presence. Configuration discovery performs no
+inference, imports no provider plugins and makes no external calls. Configured
+providers and Ditto are **not health-checked** by this operation. Dynamic remote
+catalog aliases and saved onboarding providers are not enumerated.
+
+The flat MCP discovery schema is an index for portable harness support. Before
+using an action, retrieve its exact structural contract:
+
+```json
+{"action":"schema.get","target_action":"snapshot.save"}
+```
+
+Or set `target_action` to `analysis.submit`, `forecast.submit`, or any name from
+`info.actions`. The returned schema and runtime structural validation come from
+the same definition, including required fields, allowed fields and types.
+Authorization, evidence cutoffs, forecast alignment and numerical checks still
+apply. `export.enqueue` requires exactly one of `lesson_id` or `analysis_id`.
+
+## Trace a decision through export
+
+```json
+{"action":"decision.status","decision_id":"YOUR_DECISION_ID"}
+```
+
+This read-only, project-scoped call reports current actual coverage, snapshot IDs,
+saved reviews/evaluations, client analyses, structured lessons and associated
+Ditto export receipts/memory IDs. It also returns permission-aware next steps.
+It needs `evidence.read` and makes no Ditto calls or ledger writes.
+
+- `pending` actuals means no matching observations; `partial` means some arrived.
+- Saved analyses remain explicitly unverified client arithmetic.
+- `evidence_changed` flags snapshots/analyses/reviews/lessons whose actual IDs
+  differ from current eligible evidence, including revised observations.
+- An acknowledged export is a stored delivery receipt, not a fresh remote fetch;
+  use `memory.recall` to verify the memory still exists and matches its evidence.
+- An uncertain delivery calls for reconciliation, not an automatic retry.
+- The view reports current state with server-selected evidence cutoffs. It does
+  not reconstruct historical export transitions. Large histories fail explicitly
+  at the documented per-category limits; resolve individual references instead.
+
+Refreshing MCP discovery after an upgrade exposes these descriptions to Hermes
+and other clients. The calls also work via `gnomon-shared call`.

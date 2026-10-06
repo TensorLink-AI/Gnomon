@@ -14,7 +14,7 @@ ARG GNOMON_BUILD_COMMIT
 LABEL org.opencontainers.image.source="https://github.com/TensorLink-AI/Gnomon" \
       org.opencontainers.image.revision="${GNOMON_BUILD_COMMIT}"
 COPY --from=build /wheels /wheels
-RUN python -m pip install --no-cache-dir --no-index --find-links=/wheels gnomon-hosted==0.1.0b1 \
+RUN python -m pip install --no-cache-dir --no-index --find-links=/wheels gnomon-hosted==0.1.0b2 \
     && rm -rf /wheels \
     && useradd --uid 10001 --create-home gnomon \
     && mkdir /data && chown gnomon:gnomon /data

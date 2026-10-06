@@ -13,7 +13,8 @@ import httpx
 import jsonschema
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
-from .runtime import strict, instant
+from .runtime import instant
+from .contracts import validate_action
 from .storage import ServiceError, encode, now
 
 
@@ -68,7 +69,7 @@ async def invoke(session, schemas, tool, arguments):
 
 
 async def deliver(runtime, identity, args):
-    strict(args, ('action', 'export_id'), ('export_id',))
+    validate_action(args)
     store = runtime.store
     store.authorize(identity, 'memory.export')
     store.authorize(identity, 'evidence.read')
@@ -129,7 +130,7 @@ async def deliver(runtime, identity, args):
 
 
 async def recall(runtime, identity, args):
-    strict(args, ('action', 'query', 'source_as_of', 'recorded_as_of'), ('query', 'source_as_of', 'recorded_as_of'))
+    validate_action(args)
     store = runtime.store
     store.authorize(identity, 'evidence.read')
     if not isinstance(args['query'], str) or not 1 <= len(args['query']) <= 1000:
@@ -213,7 +214,7 @@ async def recall(runtime, identity, args):
 
 async def reconcile(runtime, identity, args):
     """Resolve an ambiguous save using a full remote read; never repeat the write."""
-    strict(args, ('action', 'export_id', 'memory_id'), ('export_id', 'memory_id'))
+    validate_action(args)
     store = runtime.store
     store.authorize(identity, 'memory.export')
     store.authorize(identity, 'evidence.read')

@@ -38,7 +38,7 @@ def backup(root, destination):
             os.chmod(target, 0o600)
             entries[relative] = hashlib.sha256(target.read_bytes()).hexdigest()
         manifest = {'schema_version': 1, 'service_id': store.service_id, 'files': entries,
-                    'core_version': __version__, 'hosted_version': '0.1.0b1',
+                    'core_version': __version__, 'hosted_version': '0.1.0b2',
                     'credentials': 'Token verifiers included; external secrets are not included.'}
         (destination / 'manifest.json').write_text(encode(manifest))
         return manifest

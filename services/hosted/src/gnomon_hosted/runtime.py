@@ -10,6 +10,7 @@ from gnomon.contracts import GnomonError
 from gnomon.forecast_adapter import ForecastRequest
 from .storage import ServiceError, encode, now
 from . import worker, submissions
+from .contracts import validate_action, action_schema, CONTRACTS
 
 LEDGER_PERMISSIONS = {
     'execution': 'evidence.read', 'decision': 'evidence.read', 'review_decision': 'evidence.read',
@@ -222,16 +223,18 @@ class Runtime:
         return json.loads(row['payload'])
 
     def hosted(self, identity, args):
+        validate_action(args)
         action = args.get('action')
-        if action == 'info':
-            strict(args, ('action',))
+        if action in ('info', 'schema.get', 'decision.status'):
             self.store.authorize(identity, 'evidence.read')
-            return {'service_id': self.store.service_id, 'project_id': identity.project,
-                    'ledger_id': self.store.project(identity.project)['ledger_id'], 'server_time': now(),
-                    'permissions': sorted(identity.permissions), 'scope': 'single-server project ledger'}
+            if action == 'schema.get':
+                return {'action': args['target_action'], 'schema': action_schema(args['target_action']),
+                        'validation_scope': 'Structural contract; evidence, permission and numerical checks also apply.'}
+            from .discovery import server_info, decision_status
+            if action == 'decision.status':
+                return decision_status(self, identity, args['decision_id'])
+            return {**server_info(self, identity), 'actions': list(CONTRACTS)}
         if action == 'forecast.submit':
-            strict(args, ('action', 'provider', 'revision', 'request', 'result', 'computed_at', 'idempotency_key'),
-                   ('provider', 'request', 'result', 'idempotency_key'))
             self.store.authorize(identity, 'forecast.create')
             payload = {k: v for k, v in args.items() if k not in ('action', 'idempotency_key')}
             request = submissions.execution(payload, identity.principal).request
@@ -247,8 +250,6 @@ class Runtime:
                 raise ServiceError('INVALID_ARGUMENTS', 'Claimed computation cannot be in the future.')
             return self.mutate(identity, 'forecast.submit', payload, args['idempotency_key'], 'forecast.create')
         if action == 'snapshot.save':
-            strict(args, ('action', 'decision_id', 'source_as_of', 'recorded_as_of', 'idempotency_key'),
-                   ('decision_id', 'source_as_of', 'recorded_as_of', 'idempotency_key'))
             self.store.authorize(identity, 'evidence.read')
             for field in ('source_as_of', 'recorded_as_of'):
                 if instant(args[field]) > instant(now()):
@@ -256,8 +257,6 @@ class Runtime:
             return self.mutate(identity, 'snapshot', {k: args[k] for k in ('decision_id', 'source_as_of', 'recorded_as_of')},
                                args['idempotency_key'], 'evidence.read')
         if action == 'analysis.submit':
-            strict(args, ('action', 'snapshot_id', 'method', 'method_version', 'metrics', 'lesson', 'export_to_ditto', 'idempotency_key'),
-                   ('snapshot_id', 'method', 'method_version', 'metrics', 'lesson', 'idempotency_key'))
             self.store.authorize(identity, 'decision.create')
             self.store.authorize(identity, 'evidence.read')
             if type(args.get('export_to_ditto', False)) is not bool:
@@ -279,13 +278,10 @@ class Runtime:
             return self.mutate(identity, 'analysis', {k: v for k, v in args.items() if k not in ('action', 'idempotency_key')},
                                args['idempotency_key'], 'decision.create')
         if action == 'dataset.put':
-            strict(args, ('action', 'request', 'idempotency_key'), ('request', 'idempotency_key'))
             self.store.authorize(identity, 'forecast.create')
             payload = {'request': asdict(ForecastRequest.from_dict(args['request']))}
             return self.mutate(identity, 'dataset', payload, args['idempotency_key'], 'forecast.create')
         if action == 'review.save':
-            strict(args, ('action', 'decision_id', 'source_as_of', 'recorded_as_of', 'idempotency_key'),
-                   ('decision_id', 'source_as_of', 'recorded_as_of', 'idempotency_key'))
             self.store.authorize(identity, 'decision.create')
             for field in ('source_as_of', 'recorded_as_of'):
                 if instant(args[field]) > datetime.now(timezone.utc):
@@ -293,7 +289,6 @@ class Runtime:
             return self.mutate(identity, 'review', {k: args[k] for k in ('decision_id', 'source_as_of', 'recorded_as_of')},
                                args['idempotency_key'], 'decision.create')
         if action == 'request.get':
-            strict(args, ('action', 'request_id'), ('request_id',))
             with self.store.ledger(identity.project).transaction() as conn:
                 row = conn.execute('SELECT * FROM hosted_requests WHERE id=? AND principal=?',
                                    (args['request_id'], identity.principal)).fetchone()
@@ -301,7 +296,6 @@ class Runtime:
                 raise ServiceError('UNAVAILABLE', 'Project or resource unavailable.', 404)
             return self.receipt(row)
         if action == 'resolve':
-            strict(args, ('action', 'reference', 'recorded_as_of'), ('reference',))
             self.store.authorize(identity, 'evidence.read')
             ref = args['reference']
             strict(ref, ('schema_version', 'service_id', 'project_id', 'ledger_id', 'resource_type', 'resource_id'),
@@ -325,7 +319,6 @@ class Runtime:
                 return {'result': ledger.export_lesson(lesson_id=record_id, recorded_as_of=args.get('recorded_as_of', now()))}
             raise ServiceError('UNAVAILABLE', 'Unsupported resource type.', 404)
         if action == 'export.enqueue':
-            strict(args, ('action', 'lesson_id', 'analysis_id', 'recorded_as_of', 'idempotency_key'), ('recorded_as_of', 'idempotency_key'))
             if ('lesson_id' in args) == ('analysis_id' in args):
                 raise ServiceError('INVALID_ARGUMENTS', 'Supply exactly one lesson_id or analysis_id.')
             self.store.authorize(identity, 'memory.export')
@@ -333,7 +326,6 @@ class Runtime:
             return self.mutate(identity, 'export', {k: v for k, v in args.items() if k in ('lesson_id', 'analysis_id', 'recorded_as_of')},
                                args['idempotency_key'], 'memory.export')
         if action == 'export.get':
-            strict(args, ('action', 'export_id'), ('export_id',))
             self.store.authorize(identity, 'evidence.read')
             with self.store.ledger(identity.project).transaction() as conn:
                 row = conn.execute('SELECT id,state,memory_id,lesson_id,created_at,updated_at FROM hosted_exports WHERE id=?',

@@ -40,6 +40,12 @@ def test_fresh_hermes_processes_share_evidence(tmp_path):
         assert resolved['result']['execution_id'] == result['result']['execution_id']
 
     with serving(store.root) as url:
+        info = invoke(url, b, 'gnomon_hosted', {'action': 'info'})
+        assert info['versions']['hosted']
+        assert info['ditto']['health_checked'] is False
+        schema = invoke(url, b, 'gnomon_hosted', {'action': 'schema.get', 'target_action': 'analysis.submit'})
+        assert 'snapshot_id' in schema['schema']['required']
+        assert schema['schema']['additionalProperties'] is False
         submitted = invoke(url, a, 'gnomon_hosted', {'action': 'forecast.submit',
             'provider': 'local-example', 'revision': 'v1', 'request': request,
             'result': {'point': [2]}, 'idempotency_key': 'local-one'})

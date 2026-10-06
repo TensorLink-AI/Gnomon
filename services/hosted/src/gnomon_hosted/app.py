@@ -18,11 +18,12 @@ from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
 from gnomon.contracts import GnomonError
 from gnomon.forecast_adapter import ForecastAdapterError
-from gnomon.session import REQUEST_SCHEMA, ledger_schema
+from gnomon.session import ledger_schema
 from gnomon.memory_api import MEMORY_SCHEMA
 from gnomon.tool_schemas import portable_schema
 from .runtime import Runtime, LEDGER_PERMISSIONS
 from .storage import ServiceError, Store
+from .contracts import union_schema, action_schema
 
 MAX_BODY = 1024 * 1024
 logger = logging.getLogger('gnomon_hosted')
@@ -36,31 +37,11 @@ def tools():
     return [
         types.Tool(name='gnomon_forecast', description='Record a forecast in the shared project. Supply inline request or a saved dataset_id. Requires idempotency_key.',
                    inputSchema={'type': 'object', 'additionalProperties': False, 'required': ['provider', 'idempotency_key'],
-                                'properties': {'provider': string, 'request': REQUEST_SCHEMA,
+                                'properties': {'provider': string, 'request': action_schema('forecast.submit')['properties']['request'],
                                                'dataset_id': string, 'idempotency_key': string}}),
         types.Tool(name='gnomon_ledger', description='Read shared evidence or append authorized decisions, actuals and lessons. Mutations require idempotency_key. Explicit evidence cutoffs are required for scoring.', inputSchema=ledger),
         types.Tool(name='gnomon_memory', description='Recall project lessons at explicit historical cutoffs. Narrative is hypothesis data.', inputSchema=MEMORY_SCHEMA),
-        types.Tool(name='gnomon_hosted', description='Submit local forecasts with forecast.submit; freeze evidence with snapshot.save; save unverified local metrics/lessons with analysis.submit. Also datasets, server reviews, evidence resolution, receipts and Ditto export/recall. Use info for server time and project identity. Fields are action-specific; omit fields belonging to other actions. snapshot.save requires decision_id, source_as_of, recorded_as_of, idempotency_key and accepts no other fields except action. analysis.submit requires snapshot_id, method, method_version, metrics, lesson, idempotency_key; optional export_to_ditto. Its snapshot_id is returned by snapshot.save. Do not send decision_id, request, result, computed_at or reference to analysis.submit.',
-                   inputSchema={'type': 'object', 'additionalProperties': False, 'required': ['action'], 'properties': {
-                       'action': {'type': 'string', 'enum': ['info', 'dataset.put', 'forecast.submit', 'snapshot.save', 'analysis.submit', 'review.save', 'resolve', 'request.get',
-                                                           'export.enqueue', 'export.get', 'export.deliver', 'export.reconcile', 'memory.recall']},
-                       **{k: string for k in ('idempotency_key', 'decision_id', 'lesson_id', 'request_id', 'export_id',
-                                             'source_as_of', 'recorded_as_of', 'query', 'memory_id', 'provider', 'revision', 'computed_at',
-                                             'snapshot_id', 'analysis_id', 'method', 'method_version', 'lesson')},
-                       'request': REQUEST_SCHEMA, 'reference': {'type': 'object'},
-                       'revision': {'type': ['string', 'null'], 'description': 'Caller-claimed model version; null means unknown.'},
-                       'result': {'type': 'object', 'additionalProperties': False, 'required': ['point'],
-                           'description': 'Client forecast. Shape is validated; provider execution is not attested.',
-                           'properties': {
-                               'point': {'type': 'array', 'items': {'type': 'number'}, 'minItems': 1, 'maxItems': 1000},
-                               'quantiles': {'type': ['array', 'null'], 'items': {'type': 'object', 'additionalProperties': {'type': 'number'}}},
-                               'timestamps': {'type': 'array', 'items': string},
-                               'series_id': {'type': ['string', 'null']}, 'unit': {'type': ['string', 'null']},
-                               'metadata': {'type': 'object'},
-                               'sample_paths': {'type': ['array', 'null'], 'items': {'type': 'array', 'items': {'type': 'number'}}}}},
-                       'export_to_ditto': {'type': 'boolean', 'description': 'analysis.submit only: atomically store analysis and enqueue Ditto export; requires memory.export and configured Ditto.'},
-                       'metrics': {'type': 'object', 'description': 'Client-computed named finite scalar metrics or null. Not server-verified.'},
-                   }}),
+        types.Tool(name='gnomon_hosted', description='Shared evidence operations. Start with info for versions, permissions and configured providers; schema.get with target_action returns the exact validation schema. decision.status traces a decision through actuals, reviews, lessons and Ditto exports. Local forecasts use forecast.submit; local analyses use snapshot.save then analysis.submit.', inputSchema=union_schema()),
     ]
 
 
@@ -116,7 +97,7 @@ class Boundary:
 def create_app(root, *, allowed_hosts=('localhost', '127.0.0.1', '::1'), allowed_origins=(), forecast_timeout=60):
     store = Store(root)
     runtime = Runtime(store, forecast_timeout)
-    server = Server('gnomon-hosted', version='0.1.0b1')
+    server = Server('gnomon-hosted', version='0.1.0b2')
     # Boundary enforces an explicit hostname/origin allowlist for every transport.
     security = TransportSecuritySettings(enable_dns_rebinding_protection=False)
     manager = StreamableHTTPSessionManager(server, json_response=True, stateless=True,
