@@ -116,7 +116,7 @@ class Boundary:
 def create_app(root, *, allowed_hosts=('localhost', '127.0.0.1', '::1'), allowed_origins=(), forecast_timeout=60):
     store = Store(root)
     runtime = Runtime(store, forecast_timeout)
-    server = Server('gnomon-hosted', version='0.1.0')
+    server = Server('gnomon-hosted', version='0.1.0b1')
     # Boundary enforces an explicit hostname/origin allowlist for every transport.
     security = TransportSecuritySettings(enable_dns_rebinding_protection=False)
     manager = StreamableHTTPSessionManager(server, json_response=True, stateless=True,

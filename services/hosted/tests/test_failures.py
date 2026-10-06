@@ -129,3 +129,25 @@ def test_receipt_reports_core_writes_after_enclosing_commit(tmp_path):
     second = runtime.call(identity, 'gnomon_ledger', args | {'idempotency_key': 'new-request-same-actual'})
     assert second['result']['execution_diagnostics']['ledger_writes'] == 0
     assert len(store.ledger(identity.project).actuals_as_of('s')) == 1
+
+
+def test_restore_into_empty_volume_and_reject_existing_contents(tmp_path):
+    from gnomon_hosted.cli import backup, restore
+    store, identity, runtime = setup(tmp_path)
+    bundle = tmp_path / 'bundle'
+    backup(store.root, bundle)
+    target = tmp_path / 'empty-volume'
+    target.mkdir()
+    result = restore(bundle, target)
+    assert result['service_id'] == store.service_id
+    assert result['tokens_revoked'] is True
+    with pytest.raises(ServiceError, match='new or empty'):
+        restore(bundle, target)
+    occupied = tmp_path / 'occupied'
+    occupied.mkdir()
+    marker = occupied / 'keep'
+    marker.write_text('untouched')
+    with pytest.raises(ServiceError, match='new or empty'):
+        restore(bundle, occupied)
+    assert marker.read_text() == 'untouched'
+    assert not (occupied / 'control.db').exists()

@@ -1,9 +1,6 @@
 services:
   gnomon:
-    image: gnomon-hosted:0.1.0b1
-    build:
-      context: ../../..
-      dockerfile: services/hosted/deployment/Dockerfile
+    image: ${GNOMON_IMAGE:-ghcr.io/tensorlink-ai/gnomon-hosted:0.1.0b1}
     command: ["serve", "--host", "0.0.0.0", "--allowed-host", "${GNOMON_HOSTNAME:-localhost}"]
     restart: unless-stopped
     ports:

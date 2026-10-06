@@ -3,7 +3,7 @@
   "name": "io.github.TensorLink-AI/gnomon",
   "title": "Gnomon",
   "description": "Inspect time series, forecast with your models, compare forecasts, and review observed outcomes.",
-  "version": "1.4.0",
+  "version": "1.4.1.dev0",
   "repository": {
     "url": "https://github.com/TensorLink-AI/Gnomon",
     "source": "github"
@@ -14,7 +14,7 @@
       "registryType": "pypi",
       "registryBaseUrl": "https://pypi.org",
       "identifier": "gnomon-forecast",
-      "version": "1.4.0",
+      "version": "1.4.1.dev0",
       "runtimeHint": "uvx",
       "transport": {
         "type": "stdio"

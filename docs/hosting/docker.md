@@ -5,6 +5,9 @@ Hermes and other MCP clients connect over HTTP locally or HTTPS remotely. Models
 can run on the server or beside the client. Ditto and R2 are optional integrations;
 shared forecasts, decisions, actuals, reviews and lessons work without them.
 
+For deployment from a published image, use the [release setup guide](self-hosted-release.md).
+The following instructions build from source.
+
 Use a checkout of the `ditto` branch, Docker Engine with BuildKit/buildx, and Docker
 Compose 2.24 or newer. Build from the repository root. There is no published image
 for this beta; these commands build the image from your checkout.

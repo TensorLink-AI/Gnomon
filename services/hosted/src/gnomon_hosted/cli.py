@@ -38,7 +38,7 @@ def backup(root, destination):
             os.chmod(target, 0o600)
             entries[relative] = hashlib.sha256(target.read_bytes()).hexdigest()
         manifest = {'schema_version': 1, 'service_id': store.service_id, 'files': entries,
-                    'core_version': __version__, 'hosted_version': '0.1.0',
+                    'core_version': __version__, 'hosted_version': '0.1.0b1',
                     'credentials': 'Token verifiers included; external secrets are not included.'}
         (destination / 'manifest.json').write_text(encode(manifest))
         return manifest
@@ -46,8 +46,8 @@ def backup(root, destination):
 
 def restore(source, root):
     source, root = Path(source).resolve(), Path(root).resolve()
-    if root.exists():
-        raise ServiceError('DESTINATION_EXISTS', 'Restore requires a new directory.')
+    if root.exists() and (not root.is_dir() or any(root.iterdir())):
+        raise ServiceError('DESTINATION_EXISTS', 'Restore requires a new or empty directory.')
     manifest = json.loads((source / 'manifest.json').read_text())
     if manifest.get('schema_version') != 1 or 'control.db' not in manifest.get('files', {}):
         raise ServiceError('INVALID_BACKUP', 'Unsupported backup manifest.')
@@ -58,7 +58,9 @@ def restore(source, root):
         candidate = source / path
         if candidate.is_symlink() or hashlib.sha256(candidate.read_bytes()).hexdigest() != digest:
             raise ServiceError('INTEGRITY', 'Backup content does not match manifest.')
-    root.mkdir(parents=True, mode=0o700)
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if any(root.iterdir()):
+        raise ServiceError('DESTINATION_EXISTS', 'Restore destination became nonempty.')
     for relative in manifest['files']:
         target = root / relative
         target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
