@@ -1,0 +1,14 @@
+# Gnomon provider configuration for the Ephemeris TSFM panel. Copy to providers.toml
+# and set forecast.providers_config = "providers.toml" in agent.toml.
+# Export before running (Gnomon does not load .env files):
+#   EPHEMERIS_BASE_URL=https://ephemeris.cascade.industries/api/v1
+#   EPHEMERIS_API_TOKEN=pc_live_...
+schema_version = 1
+
+[providers.ephemeris]
+kind = "ephemeris"
+base_url_env = "EPHEMERIS_BASE_URL"
+token_env = "EPHEMERIS_API_TOKEN"
+api_format = "gateway"
+mode = "route"      # route | ensemble (accuracy-weighted blend of the panel)
+discover = false    # true also registers each explicit model (GET /models at startup)

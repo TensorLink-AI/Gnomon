@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Add `integrations/vanta`, an hourly trading agent for the Vanta Network
+  (Bittensor SN8). Gnomon volatility forecasts size its positions, and Ephemeris
+  quantile forecasts set direction. It records each decision before ordering,
+  submits to the miner REST server with deterministic order ids (recoverable
+  after timeouts), and runs a backtest → paper → live progression.
+
 ## 1.4.0 — 2026-10-05
 
 - Add task discovery through Python, CLI and MCP: see configured availability,

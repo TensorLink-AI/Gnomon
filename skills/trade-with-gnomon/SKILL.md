@@ -167,3 +167,5 @@ unresolved limits and the next experiment. Say plainly when no edge survived cos
 
 [Ephemeris setup](../setup-gnomon-ephemeris/SKILL.md), [Gnomon usage](../use-gnomon/SKILL.md)
 and [ledger](../use-gnomon-ledger/SKILL.md) cover setup and schemas in detail.
+For a complete worked agent on one venue, see the
+[Vanta Network agent](../../integrations/vanta/README.md).

@@ -1,0 +1,55 @@
+# Vanta trading agent configuration. Copy to agent.toml.
+# Relative paths resolve beside this file. Unknown keys fail at startup.
+
+[agent]
+mode = "paper"                 # backtest | paper | live
+account = "vanta-miner-1"      # used in event and client-order ids; one per hotkey
+state_dir = "state"            # book-<mode>.json, <mode>.db (Gnomon ledger), journal/
+policy_revision = "volsize-dir-v1"
+# Live only. The user writes and approves this record from a paper review
+# (Gnomon skills/trade-with-gnomon/references/promotion.md).
+# promotion_record = "promotion.json"
+# paper_ledger = "state/paper.db"
+
+[universe]
+pairs = ["BTCUSDC", "ETHUSDC", "SOLUSDC"]  # Vanta trade_pair ids (Hyperliquid USDC perps)
+
+[market_data]
+source = "hyperliquid"         # hyperliquid (public, no key) | csv
+url = "https://api.hyperliquid.xyz/info"
+# csv_dir = "data"             # <PAIR>.csv with open_time,close 5-minute bars
+stale_after_minutes = 20
+
+[forecast]
+# Gnomon providers file with the Ephemeris connector; see providers.example.toml.
+# Leave empty to run with local models only.
+providers_config = ""
+direction_provider = "rw"      # "ephemeris" once providers_config is set; "rw" = no direction view
+direction_baseline = "rw"      # random walk: zero expected return
+vol_model = "vol/har"          # vol/last | vol/ewma | vol/har (Gnomon volatility helpers)
+vol_baseline = "vol/last"
+horizon_hours = 4
+history_hours = 336            # <= 416 with Hyperliquid (5000 x 5m candles)
+quantiles = [0.1, 0.5, 0.9]
+
+[risk]
+target_vol_bps_per_hour = 8.0  # risk budget per position (hourly stdev of equity)
+max_position_leverage = 0.5    # Vanta tier-2 crypto cap: 1.0
+max_portfolio_leverage = 1.5   # Vanta tier-2 crypto cap: 2.0
+allow_short = true
+z_full = 1.0
+min_rebalance_leverage = 0.02
+intraday_drawdown_halt = 0.03  # Vanta eliminates at 5% from day-open equity
+eod_drawdown_halt = 0.05       # Vanta eliminates at 8% from peak EOD equity
+initial_equity = 150000.0      # $500 of trading capacity per Theta of collateral
+
+[costs]
+fee_bps = 3.0                  # Vanta crypto spread fee 0.03% per order
+slippage_bps = 2.0
+funding_bps_per_hour = 0.125   # approximates Hyperliquid funding (~10.95%/yr)
+
+[vanta]
+url = "http://127.0.0.1:8088"  # miner REST server started by neurons/miner.py
+api_key_env = "VANTA_API_KEY"  # the key from vanta_api/api_keys.json
+timeout_seconds = 120.0
+same_pair_cooldown_seconds = 6.0
