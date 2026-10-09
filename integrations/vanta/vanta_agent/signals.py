@@ -63,8 +63,9 @@ def open_session(config, *, ledger=None):
     cap = AdapterCapabilities(quantiles=True, min_history=48)
     session.engine.register("rw", random_walk, capabilities=cap, revision="rw-empirical-band-v1")
     session.engine.register("local/momentum", momentum(), capabilities=cap, revision="momentum-24h-v1")
-    missing = {config.forecast.direction_provider, config.forecast.direction_baseline,
-               config.forecast.vol_model, config.forecast.vol_baseline} - set(session.capabilities()["providers"])
+    f = config.forecast
+    missing = {f.direction_provider, f.direction_baseline, f.vol_model, f.vol_baseline,
+               *f.shadow_vol_models, *f.shadow_direction_providers} - set(session.capabilities()["providers"])
     if missing:
         session.close()
         raise RuntimeError(f"Providers not available in this session: {sorted(missing)}. "

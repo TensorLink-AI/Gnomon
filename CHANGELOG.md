@@ -7,6 +7,11 @@
   quantile forecasts set direction. It records each decision before ordering,
   submits to the miner REST server with deterministic order ids (recoverable
   after timeouts), and runs a backtest → paper → live progression.
+- Add offline strategy research to the Vanta agent. Strategy files carry hashed
+  revisions recorded with every decision. Champion/challenger comparisons run on a
+  frozen dataset: paired block-bootstrap bounds, alpha/k sweeps, a trial journal,
+  a limited-look holdout and cached forecasts. `guide` ranks traded and shadow models
+  on realised outcomes in the Gnomon ledger and proposes one-parameter candidates.
 
 ## 1.4.0 — 2026-10-05
 

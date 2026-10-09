@@ -18,7 +18,7 @@ from gnomon import TemporalLedger
 
 from . import policy
 from .market_data import MarketData
-from .signals import forecast_signal, open_session
+from .signals import forecast_signal, open_session, requests_for
 from .state import Book
 from .vanta_client import Order, VantaClient, VantaError, VantaUncertain, order_uuid
 
@@ -61,6 +61,17 @@ class Agent:
                                          value=float(value), source_available_at=t.isoformat(),
                                          source_ref=f"{self.config.market_data.source}:5m-candles")
                     book.last_actual[series_id] = t.isoformat()
+
+    def _shadow_forecasts(self, session, pair, series):
+        """Record shadow models' forecasts for `guide`; they never affect trading."""
+        f = self.config.forecast
+        vol_req, price_req = requests_for(pair, series, self.config)
+        for provider, request in ([(m, vol_req) for m in f.shadow_vol_models] +
+                                  [(m, price_req) for m in f.shadow_direction_providers]):
+            try:
+                session.forecast(provider, request)
+            except Exception:  # a failing shadow is just missing evidence
+                pass
 
     # -- execution ----------------------------------------------------------------
     def _reconcile(self, book, now):
@@ -149,6 +160,7 @@ class Agent:
                     report["pairs"][pair] = dict(skipped=f"forecast failed: {error}")
                     continue
                 raw[pair], why[pair] = policy.target_leverage(signals[pair], cfg.risk, cfg.costs)
+                self._shadow_forecasts(session, pair, fresh[pair])
             targets = policy.apply_portfolio_cap(raw, cfg.risk)
 
             for pair, signal in signals.items():
@@ -166,10 +178,10 @@ class Agent:
                         ledger, day_dir / f"{stem}.intent.json", mode=cfg.agent.mode,
                         forecast=signal.direction, account=cfg.agent.account, leg="rebalance",
                         event_id=f"{cfg.agent.account}:{pair}:{signal.time}",
-                        policy_revision=cfg.agent.policy_revision,
+                        policy_revision=cfg.revision,
                         action=dict(current_leverage=current, target_leverage=target,
                                     orders=[o.payload("") for o in orders]),
-                        rationale=json.dumps(dict(policy=cfg.agent.policy_revision, halted=book.halt_reason or None,
+                        rationale=json.dumps(dict(policy=cfg.revision, halted=book.halt_reason or None,
                                                   sigma_1h_bps=round(signal.sigma_1h_bps, 2), **why[pair])),
                         assumptions=[f"Price {signal.price} is the last closed hourly bar at {signal.time}.",
                                      f"Costs: {cfg.costs.fee_bps} bps fee + {cfg.costs.slippage_bps} bps slippage "

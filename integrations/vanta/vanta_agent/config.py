@@ -11,7 +11,12 @@ class AgentSection:
     mode: str = "paper"
     account: str = "vanta-miner"
     state_dir: str = "state"
+    # Policy name; the recorded revision is `<name>@<hash of forecast+risk>`, so any
+    # parameter change yields a new revision in the ledger.
     policy_revision: str = "volsize-dir-v1"
+    # Optional strategy file ([strategy], [forecast], [risk]) overriding this file's
+    # [forecast] and [risk]; research promotes champions into it.
+    strategy: str = ""
     # Live only: a user-approved promotion record and the paper ledger it cites
     # (see skills/trade-with-gnomon/references/promotion.md).
     promotion_record: str = ""
@@ -47,6 +52,10 @@ class ForecastSection:
     horizon_hours: int = 4
     history_hours: int = 336
     quantiles: tuple[float, ...] = (0.1, 0.5, 0.9)
+    # Forecast every cycle and record in the ledger, never used for trading: they
+    # accumulate prospective evidence for `guide` to rank against the live models.
+    shadow_vol_models: tuple[str, ...] = ()
+    shadow_direction_providers: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -84,6 +93,17 @@ class VantaSection:
 
 
 @dataclass(frozen=True)
+class ResearchSection:
+    work_dir: str = "research"  # trials journal, forecast cache, candidate strategies
+    dataset_dir: str = "research/data"  # frozen <PAIR>.csv snapshot + manifest.json
+    tune_fraction: float = 0.7  # earlier part: iterate freely; later part: locked holdout
+    block_hours: int = 24  # bootstrap block length (keeps intraday dependence)
+    bootstrap_samples: int = 2000
+    alpha: float = 0.05  # one-sided: accept when the lower bound of improvement > 0
+    max_holdout_looks: int = 3  # then the holdout is spent: snapshot new data
+
+
+@dataclass(frozen=True)
 class AgentConfig:
     agent: AgentSection = field(default_factory=AgentSection)
     universe: UniverseSection = field(default_factory=UniverseSection)
@@ -92,12 +112,23 @@ class AgentConfig:
     risk: RiskSection = field(default_factory=RiskSection)
     costs: CostSection = field(default_factory=CostSection)
     vanta: VantaSection = field(default_factory=VantaSection)
+    research: ResearchSection = field(default_factory=ResearchSection)
     base_dir: Path = Path(".")
+    strategy_name: str = ""
+    strategy_parent: str = ""
+
+    @property
+    def revision(self) -> str:
+        from .strategy import revision
+        return revision(self)
 
     def path(self, value: str) -> Path:
         """Resolve a configured path relative to the config file."""
         p = Path(value)
         return p if p.is_absolute() else (self.base_dir / p).resolve()
+
+
+_NON_SECTIONS = {"base_dir", "strategy_name", "strategy_parent"}
 
 
 def _section(cls, raw, name):
@@ -138,9 +169,13 @@ def validate(config: AgentConfig) -> AgentConfig:
 def load(path: str | Path) -> AgentConfig:
     path = Path(path).resolve()
     raw = tomllib.loads(path.read_text())
-    sections = {f.name: f.type for f in fields(AgentConfig) if f.name != "base_dir"}
+    sections = {f.name: f.type for f in fields(AgentConfig) if f.name not in _NON_SECTIONS}
     unknown = set(raw) - set(sections)
     if unknown:
         raise ValueError(f"unknown config sections: {sorted(unknown)}")
     built = {name: _section(cls, raw.get(name), name) for name, cls in sections.items()}
-    return validate(AgentConfig(**built, base_dir=path.parent))
+    config = AgentConfig(**built, base_dir=path.parent)
+    if config.agent.strategy:
+        from .strategy import apply_strategy
+        return apply_strategy(config, config.path(config.agent.strategy))
+    return validate(config)

@@ -293,3 +293,137 @@ def test_live_timeout_blocks_pair_until_reconciled(tmp_path, monkeypatch):
     signed = pending[0]["leverage"] * (1 if pending[0]["order_type"] == "LONG" else -1)
     assert follow["positions"][pair] == pytest.approx(signed)  # applied exactly once
     assert len(fake.orders) == sent  # same hour: already decided, nothing resent
+
+
+# -- strategy files and offline research ----------------------------------------------
+from vanta_agent import research, strategy  # noqa: E402
+from vanta_agent.guide import guide  # noqa: E402
+
+
+def lab_config(tmp_path, *, hours=420, drift=6e-5, champion='direction_provider = "rw"', extra=""):
+    now = _now()
+    write_candles(tmp_path / "data", now, hours=hours, drift=drift)
+    make_config(tmp_path, direction="rw")
+    text = (tmp_path / "agent.toml").read_text()
+    text = text.replace("[agent]\n", '[agent]\nstrategy = "strategies/champion.toml"\n', 1)
+    (tmp_path / "agent.toml").write_text(text + extra)
+    (tmp_path / "strategies").mkdir()
+    (tmp_path / "strategies/champion.toml").write_text(f'[strategy]\nname = "s"\n\n[forecast]\n{champion}\n')
+    cfg = config_mod.load(tmp_path / "agent.toml")
+    research.snapshot(cfg, hours=hours, now=now)
+    return cfg
+
+
+def test_strategy_revision_tracks_parameters_not_metadata(tmp_path):
+    cfg = make_config(tmp_path)
+    child = strategy.with_overrides(cfg, {"risk.z_full": 2.0})
+    assert child.revision != cfg.revision and child.strategy_parent == cfg.revision
+    assert strategy.diff(cfg, child) == {"risk.z_full": [1.0, 2.0]}
+    path = strategy.dump(child, tmp_path / "s.toml", description="anything")
+    assert strategy.apply_strategy(cfg, path).revision == child.revision  # round trip
+    shadowed = strategy.with_overrides(cfg, {"forecast.shadow_vol_models": ["vol/har"]})
+    assert shadowed.revision == cfg.revision  # shadows observe, they do not trade
+    with pytest.raises(ValueError, match="tier-2"):
+        strategy.with_overrides(cfg, {"risk.max_position_leverage": 3.0})
+    with pytest.raises(ValueError, match="unknown"):
+        strategy.with_overrides(cfg, {"risk.leverage_boost": 1})
+
+
+def test_block_bootstrap_bound():
+    kw = dict(block=24, samples=500, alpha=0.05, seed=1)
+    assert research.block_bootstrap_lcb([1.0] * 100, **kw) == pytest.approx(1.0)
+    rng = random.Random(0)
+    assert research.block_bootstrap_lcb([rng.gauss(0, 1) for _ in range(300)], **kw) < 0
+
+
+def test_research_compare_promote_and_holdout_budget(tmp_path):
+    cfg = lab_config(tmp_path)
+    lab = research.Lab(cfg)
+    challenger = strategy.with_overrides(cfg, {"forecast.direction_provider": "local/momentum"})
+    with pytest.raises(ValueError, match="No accepted tune comparison"):
+        lab.promote(cfg, challenger, cfg.path(cfg.agent.strategy))
+    record = lab.compare(cfg, challenger)
+    assert record["verdict"] == "accept", record["reason"]  # trending data: momentum goes long
+    out = lab.promote(cfg, challenger, cfg.path(cfg.agent.strategy))
+    assert out["promoted"] and out["window"] == "holdout"
+    lab.close()
+    promoted = config_mod.load(tmp_path / "agent.toml")
+    assert promoted.revision == challenger.revision and promoted.strategy_parent == cfg.revision
+    assert (tmp_path / "research/champions").glob("s-*.toml")
+    kinds = [t["kind"] for t in research.read_trials(tmp_path / "research/trials.jsonl")]
+    assert kinds == ["compare", "holdout", "promote"]
+    # The holdout is spent after max_holdout_looks, whatever their outcomes.
+    lab = research.Lab(promoted)
+    while lab.holdout_looks() < cfg.research.max_holdout_looks:
+        lab._log(dict(kind="holdout", window="holdout"))
+    child = strategy.with_overrides(promoted, {"risk.target_vol_bps_per_hour": 10.0})
+    lab._log(dict(kind="compare", window="tune", champion=promoted.revision, challenger=child.revision,
+                  verdict="accept"))
+    with pytest.raises(ValueError, match="no longer"):
+        lab.promote(promoted, child, tmp_path / "scratch-champion.toml")
+    lab.close()
+
+
+def test_sweep_is_one_change_at_a_time_with_corrected_alpha(tmp_path):
+    cfg = lab_config(tmp_path)
+    lab = research.Lab(cfg)
+    out = lab.sweep(cfg, {"risk.z_full": [0.5, 1.0, 2.0], "forecast.horizon_hours": [2, 8]})
+    lab.close()
+    assert out["candidates"] == 3  # unchanged values (z_full=1.0, horizon=2) are not candidates
+    assert out["alpha_per_candidate"] == pytest.approx(cfg.research.alpha / 3)
+    assert all(len(row["change"]) == 1 for row in out["results"])
+    assert all(Path(row["candidate"]).exists() for row in out["results"])
+
+
+def test_research_refuses_edited_data(tmp_path):
+    cfg = lab_config(tmp_path, hours=300)
+    csv_path = cfg.path(cfg.research.dataset_dir) / "BTCUSDC.csv"
+    lines = csv_path.read_text().splitlines()
+    lines[5] = lines[5].rsplit(",", 1)[0] + ",1.0"
+    csv_path.write_text("\n".join(lines) + "\n")
+    with pytest.raises(ValueError, match="changed since the snapshot"):
+        research.Lab(cfg)
+
+
+def test_forecast_cache_reuses_replies_and_enforces_remote_budget(tmp_path):
+    class Session:
+        calls = 0
+
+        def capabilities(self):
+            return {"providers": {"ephemeris": {"revision": None}, "rw": {"revision": "rw-v1"}}}
+
+        def forecast(self, provider, request):
+            Session.calls += 1
+            return {"status": "ok", "result": {"point": [1.0]}, "provider": provider}
+
+    from vanta_agent.backtest import ForecastCache, RemoteBudgetExceeded
+    cache = ForecastCache(Session(), tmp_path / "c.sqlite", max_remote_calls=1)
+    cache.forecast("ephemeris", {"history": [1, 2], "horizon": 1})
+    cache.forecast("ephemeris", {"history": [1, 2], "horizon": 1})  # cached: free
+    assert Session.calls == 1 and cache.remote_calls == 1
+    with pytest.raises(RemoteBudgetExceeded):
+        cache.forecast("ephemeris", {"history": [1, 3], "horizon": 1})
+    again = ForecastCache(Session(), tmp_path / "c.sqlite", max_remote_calls=0)
+    assert again.forecast("ephemeris", {"history": [1, 2], "horizon": 1})["status"] == "ok"  # persisted
+
+
+# -- Gnomon-guided suggestions from realised outcomes ---------------------------------
+def test_guide_ranks_shadow_models_on_realised_outcomes(tmp_path):
+    end = _now()
+    write_candles(tmp_path / "data", end, hours=220)
+    make_config(tmp_path, direction="rw")
+    text = (tmp_path / "agent.toml").read_text().replace(
+        "[forecast]\n", '[forecast]\nshadow_vol_models = ["vol/har"]\nshadow_direction_providers = ["local/momentum"]\n')
+    (tmp_path / "agent.toml").write_text(text.replace('vol_model = "vol/ewma"', 'vol_model = "vol/last"'))
+    cfg = config_mod.load(tmp_path / "agent.toml")
+    for h in range(16, -1, -1):
+        now = end - timedelta(hours=h)
+        Agent(cfg, clock=lambda now=now: now).cycle()
+    report = guide(cfg, min_origins=10)
+    vol = report["roles"]["vol"]
+    assert vol["scored_origins"] >= 20 and vol["versus_current"]["vol/har"]["origins"] >= 20
+    assert set(report["roles"]["direction"]["versus_current"]) == {"local/momentum"}
+    for suggestion in report["suggestions"]:  # each is one parameter away and loads as a strategy
+        child = strategy.apply_strategy(cfg, suggestion["candidate"])
+        assert len(strategy.diff(cfg, child)) == 1
+    assert guide(cfg, min_origins=10_000)["suggestions"] == []  # too little evidence: no suggestion

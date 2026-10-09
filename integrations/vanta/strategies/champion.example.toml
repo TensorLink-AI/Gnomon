@@ -1,0 +1,13 @@
+# Starting champion. Copy to strategies/champion.toml. Keys under [forecast] and
+# [risk] override agent.toml; anything not set here comes from agent.toml.
+# `research promote` rewrites this file with the full parameter set and its parent.
+[strategy]
+name = "volsize"
+description = "Volatility-sized; no direction view until a provider earns one."
+
+[forecast]
+direction_provider = "rw"
+vol_model = "vol/har"
+
+[risk]
+target_vol_bps_per_hour = 8.0

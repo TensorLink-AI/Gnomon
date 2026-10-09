@@ -52,6 +52,7 @@ never resends the order under a new id.
 pip install gnomon-forecast            # or `pip install .` from the Gnomon checkout
 cd integrations/vanta
 cp agent.example.toml agent.toml       # edit pairs, risk, mode
+cp strategies/champion.example.toml strategies/champion.toml
 ```
 
 **Ephemeris (optional).** Copy `providers.example.toml` to `providers.toml` and export
@@ -85,6 +86,78 @@ prints one JSON line.
 17 days at 5 minutes. A 168-hour history plus a 240-hour test therefore fits in one
 fetch. For longer backtests, set `market_data.source = "csv"` and supply
 `<PAIR>.csv` files with `open_time,close` columns at 5-minute bars.
+
+## Iterating on the strategy
+
+A strategy is a file: `strategies/champion.toml` holds `[forecast]` and `[risk]`
+parameters on top of `agent.toml`. Its revision is `<name>@<hash of the effective
+parameters>`. The agent records that revision with every ledger decision, so the
+evidence always names the exact parameters behind it.
+
+There are two loops. Offline research changes the strategy. Gnomon's evidence from
+trading says which change to try next.
+
+```text
+          offline (research/)                         online (state/<mode>.db)
+ snapshot ─► report ─► sweep / compare ─► promote ─► paper cycles + shadow models
+    ▲                    ▲  tune window      │ holdout        │ realised outcomes
+    │                    └──── candidate ◄── guide ◄──────────┘
+    └──── new data when the holdout is spent
+```
+
+```bash
+V="python -m vanta_agent"; C="--config agent.toml"
+$V research snapshot $C --hours 400            # freeze data (CSV + hashes); edits are refused later
+$V research report $C                          # champion on the tune window + forecast quality
+$V research sweep $C --vary risk.z_full=0.5,2 --vary forecast.horizon_hours=2,8
+$V research compare $C --set risk.target_vol_bps_per_hour=10      # or --candidate FILE
+$V research promote $C --candidate research/candidates/<rev>.toml
+$V research trials $C                          # every evaluation, by dataset
+$V guide $C                                    # what the paper ledger says to try next
+```
+
+**Data and windows.** `research snapshot` freezes the data. Its decision hours are
+split in two:
+- The **tune window** (the earlier 70%) is where you iterate.
+- The **holdout** (the later 30%) is only used by `promote`. It can be used
+  `max_holdout_looks` times; after that, snapshot newer data.
+
+**Comparing a challenger.** `compare` and `sweep` run the champion and a challenger
+over the same hours. They take the paired hourly differences in net return and
+bootstrap them in 24-hour blocks:
+- **Accept:** the lower confidence bound of the improvement is above zero, and the
+  challenger stays inside the agent's own drawdown halts.
+- **Sweeps:** `sweep` changes one parameter at a time from the champion. With k
+  candidates, each is judged at `alpha / k`.
+- **Logging:** every comparison is appended to `research/trials.jsonl`. You can always
+  see how many looks a result took.
+
+**Promoting.** `promote` needs an accepted tune comparison against the current
+champion. It spends one holdout look and requires the holdout improvement to be
+non-negative. It then rewrites `strategies/champion.toml` with the full parameter set
+and its `parent`, and archives the previous champion in `research/champions/`.
+
+**Cost of iterating.** Forecasts are cached in `research/forecast_cache.sqlite`, keyed
+by provider revision and exact request:
+- Changing only `[risk]` parameters re-runs the cheap policy simulation and reuses
+  every forecast.
+- A new forecast setting pays its forecast calls once, and Ephemeris calls are
+  capped by `--max-remote-calls`.
+
+**What `guide` adds.** List candidate models in `shadow_vol_models` and
+`shadow_direction_providers`. The agent then forecasts with them every cycle and
+records them in the ledger, but never trades on them. Once actuals arrive, `guide`
+does three things:
+1. It scores every model at each forecast origin against the same realised outcome
+   with Gnomon's `compare`. Price errors are in bps, so pairs weigh equally.
+2. It pools those scores and bootstraps them against the model the strategy uses.
+3. If a model is better with confidence over at least `--min-origins` origins, it
+   writes a candidate strategy that is one parameter away.
+
+Better forecasts are not yet better trading. The candidate still goes through
+`research compare` (P&L after costs), `promote` and paper trading. Policy parameters
+such as sizing, hurdle and horizon have no prospective forecast score, so they are
+tuned offline only.
 
 ## Backtest → paper → live
 

@@ -5,7 +5,9 @@
 mode = "paper"                 # backtest | paper | live
 account = "vanta-miner-1"      # used in event and client-order ids; one per hotkey
 state_dir = "state"            # book-<mode>.json, <mode>.db (Gnomon ledger), journal/
-policy_revision = "volsize-dir-v1"
+policy_revision = "volsize-dir-v1"   # name; the recorded revision adds a hash of [forecast]+[risk]
+# The champion strategy: overrides [forecast] and [risk] below. `research promote` rewrites it.
+strategy = "strategies/champion.toml"
 # Live only. The user writes and approves this record from a paper review
 # (Gnomon skills/trade-with-gnomon/references/promotion.md).
 # promotion_record = "promotion.json"
@@ -31,6 +33,9 @@ vol_baseline = "vol/last"
 horizon_hours = 4
 history_hours = 336            # <= 416 with Hyperliquid (5000 x 5m candles)
 quantiles = [0.1, 0.5, 0.9]
+# Forecast and recorded every cycle, never traded on: evidence for `guide`.
+shadow_vol_models = ["vol/ewma", "vol/har"]
+shadow_direction_providers = ["local/momentum"]   # add "ephemeris" here before trading on it
 
 [risk]
 target_vol_bps_per_hour = 8.0  # risk budget per position (hourly stdev of equity)
@@ -53,3 +58,12 @@ url = "http://127.0.0.1:8088"  # miner REST server started by neurons/miner.py
 api_key_env = "VANTA_API_KEY"  # the key from vanta_api/api_keys.json
 timeout_seconds = 120.0
 same_pair_cooldown_seconds = 6.0
+
+[research]
+work_dir = "research"            # trials.jsonl, forecast_cache.sqlite, candidates/, champions/
+dataset_dir = "research/data"    # frozen snapshot from `research snapshot`
+tune_fraction = 0.7              # earlier 70% of decision hours: iterate; later 30%: locked holdout
+block_hours = 24
+bootstrap_samples = 2000
+alpha = 0.05                     # sweeps of k candidates use alpha / k
+max_holdout_looks = 3
