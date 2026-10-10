@@ -20,6 +20,7 @@ _REAL_CALL = JSONTransport.call
 @pytest.fixture(autouse=True)
 def profile(tmp_path, monkeypatch):
     monkeypatch.setenv('XDG_CONFIG_HOME', str(tmp_path/'config'))
+    monkeypatch.delenv('EPHEMERIS_CREDENTIALS_FILE', raising=False)
     monkeypatch.setattr(JSONTransport, 'call', Mock(return_value=[]))
     return onboarding.credential_path()
 
@@ -364,3 +365,58 @@ def test_hermes_setup_discoverable_in_retained_capabilities(profile):
         assert retained['summary']['onboarding']['ephemeris']['hermes_setup'] == setup
     finally:
         refs.close()
+
+
+def _shared(tmp_path, key='pc_live_shared_key', dir_mode=0o700, file_mode=0o600):
+    """What ephemeris auth login, ephemeris-mcp login and savetokens save."""
+    path = onboarding.shared_credential_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.parent.chmod(dir_mode)
+    path.write_text(f'EPHEMERIS_API_KEY={key}\n')
+    path.chmod(file_mode)
+    return path
+
+
+def test_shared_ephemeris_key_connects_gnomon_without_its_own(profile, tmp_path, monkeypatch, capsys):
+    shared = _shared(tmp_path)
+    assert shared == tmp_path/'config'/'ephemeris'/'credentials'
+    assert onboarding.saved_connection() and onboarding.active_credential_path() == shared
+    assert onboarding.read_token(shared) == 'pc_live_shared_key'
+    assert onboarding.saved_info()['credential_source'] == 'shared'
+    monkeypatch.setattr(JSONTransport, 'call', Mock(return_value={'balance_mc': '5'}))
+    assert main(['connect', 'ephemeris', '--check']) == 0
+    assert 'pc_live_shared_key' not in capsys.readouterr().out
+    with GnomonSession.from_config() as session:
+        assert 'ephemeris' in session._ephemeris_providers
+    assert not profile.exists()                     # Gnomon's own file is never written for it
+
+
+def test_gnomon_own_key_wins_over_the_shared_one(profile, tmp_path):
+    _shared(tmp_path)
+    onboarding.save_token('gnomon-own')
+    assert onboarding.active_credential_path() == profile
+    assert onboarding.saved_info()['credential_source'] == 'gnomon'
+
+
+@pytest.mark.parametrize('dir_mode,file_mode', [(0o755, 0o600), (0o700, 0o644)])
+def test_shared_key_not_private_is_ignored_not_fatal(profile, tmp_path, dir_mode, file_mode):
+    _shared(tmp_path, dir_mode=dir_mode, file_mode=file_mode)
+    assert onboarding.saved_connection() is False
+    assert onboarding.saved_info()['credential_source'] == 'shared_ignored_not_private'
+    with GnomonSession.from_config() as session:     # startup still works, local models only
+        assert not session._ephemeris_providers
+
+
+def test_disconnect_says_when_the_shared_key_still_connects(profile, tmp_path, capsys):
+    onboarding.save_token('gnomon-own')
+    _shared(tmp_path)
+    assert main(['connect', 'ephemeris', '--disconnect']) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert not profile.exists() and out['credential_source'] == 'shared'
+    assert 'ephemeris auth logout' in out['guidance']
+
+
+def test_explicit_shared_path_must_be_absolute(profile, monkeypatch):
+    monkeypatch.setenv('EPHEMERIS_CREDENTIALS_FILE', 'relative/credentials')
+    with pytest.raises(ForecastAdapterError):
+        onboarding.shared_credential_path()

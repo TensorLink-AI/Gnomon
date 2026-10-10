@@ -25,6 +25,41 @@ def credential_path():
     return (Path(base) if base else Path.home() / '.config') / 'gnomon' / 'ephemeris.token'
 
 
+def shared_credential_path():
+    """The key file other Ephemeris tools share (`ephemeris auth login`, `ephemeris-mcp login`, savetokens):
+    one line EPHEMERIS_API_KEY=pc_live_..."""
+    explicit = os.environ.get('EPHEMERIS_CREDENTIALS_FILE')
+    if explicit:
+        if not Path(explicit).is_absolute():
+            raise ForecastAdapterError('EPHEMERIS_CREDENTIALS_FILE must be an absolute path.')
+        return Path(explicit)
+    base = os.environ.get('XDG_CONFIG_HOME')
+    if base and not Path(base).is_absolute():
+        raise ForecastAdapterError('XDG_CONFIG_HOME must be an absolute directory.')
+    return (Path(base) if base else Path.home() / '.config') / 'ephemeris' / 'credentials'
+
+
+def shared_status():
+    """'absent', 'usable', or 'ignored' (present but not private: Gnomon's rules apply to it too)."""
+    path = shared_credential_path()
+    if not path.exists() and not path.is_symlink():
+        return 'absent'
+    try:
+        _check_private(path.parent, directory=True)
+        _check_private(path)
+    except (ForecastAdapterError, OSError):
+        return 'ignored'
+    return 'usable'
+
+
+def active_credential_path():
+    """Gnomon's own saved key, else the shared Ephemeris key file when it passes the same privacy checks."""
+    own = credential_path()
+    if own.exists() or own.is_symlink():
+        return own
+    return shared_credential_path() if shared_status() == 'usable' else None
+
+
 def _check_private(path, *, directory=False):
     info = path.lstat()
     expected = stat.S_ISDIR if directory else stat.S_ISREG
@@ -35,8 +70,8 @@ def _check_private(path, *, directory=False):
 
 
 def saved_connection():
-    path = credential_path()
-    if not path.exists() and not path.is_symlink():
+    path = active_credential_path()
+    if path is None:
         return False
     _check_private(path.parent, directory=True)
     _check_private(path)
@@ -54,6 +89,9 @@ def read_token(path):
                 (info.st_uid != os.getuid() or info.st_mode & 0o077)):
             raise ForecastAdapterError('Ephemeris credential file must be private and owned by your user.')
         token = handle.read(4097).strip()
+    shared = re.fullmatch(r'(?:export\s+)?EPHEMERIS_API_KEY\s*=\s*(\S+?)\s*', token.splitlines()[0] if token else '')
+    if shared:   # the shared Ephemeris key file's format
+        token = shared.group(1).strip('\'"')
     return validate_token(token)
 
 
@@ -162,10 +200,12 @@ def refresh_models():
     from .ephemeris import EphemerisProvider
     from .http_transport import JSONTransport
     provider = EphemerisProvider(GATEWAY_URL, api_format='gateway',
-                                transport=JSONTransport(GATEWAY_URL, token_file=credential_path()))
+                                transport=JSONTransport(GATEWAY_URL, token_file=active_credential_path()))
     rows = clean_catalog(provider.models())
     data = {'models': rows, 'retrieved_at': datetime.now(timezone.utc).isoformat()}
     path = catalog_path()
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    _check_private(path.parent, directory=True)
     if path.exists() or path.is_symlink():
         _check_private(path)
     fd, name = tempfile.mkstemp(prefix='.ephemeris-models-', dir=path.parent)
@@ -183,12 +223,21 @@ def refresh_models():
             'forecast_calls': 0, 'guidance': 'Restart MCP to load the refreshed individual models.'}
 
 
+def credential_source():
+    own = credential_path()
+    if own.exists() or own.is_symlink():
+        return 'gnomon'
+    return {'usable': 'shared', 'ignored': 'shared_ignored_not_private', 'absent': None}[shared_status()]
+
+
 def saved_info():
     saved = saved_connection()
     catalog = load_catalog() if saved else {'status': 'not_discovered', 'models': []}
     summary = {key: value for key, value in catalog.items() if key != 'models'}
     summary['providers'] = ['ephemeris/' + r['name'] for r in catalog['models'] if r['enabled'] and r['healthy']]
-    return connection_info(saved=saved, catalog=summary)
+    info = connection_info(saved=saved, catalog=summary)
+    info['credential_source'] = credential_source()
+    return info
 
 
 def register_saved(session):
@@ -197,14 +246,14 @@ def register_saved(session):
     from .ephemeris import EphemerisProvider
     from .http_transport import JSONTransport
     for name, mode in [('ephemeris', 'route'), ('ephemeris/ensemble', 'ensemble')]:
-        transport = JSONTransport(GATEWAY_URL, token_file=credential_path())
+        transport = JSONTransport(GATEWAY_URL, token_file=active_credential_path())
         session.engine.register(name, EphemerisProvider(GATEWAY_URL, mode=mode,
                                 api_format='gateway', transport=transport), lifecycle='pretrained')
         session._ephemeris_providers.add(name)
     catalog = load_catalog()
     session._ephemeris_catalog = {key: value for key, value in catalog.items() if key != 'models'}
     provider = EphemerisProvider(GATEWAY_URL, api_format='gateway',
-                                transport=JSONTransport(GATEWAY_URL, token_file=credential_path()))
+                                transport=JSONTransport(GATEWAY_URL, token_file=active_credential_path()))
     session._ephemeris_providers.update(provider.register_catalog(session.engine, catalog['models']))
 
 
@@ -213,9 +262,15 @@ def connect(args):
         from .hermes_setup import install_skills
         return install_skills()
     if args.disconnect:
-        if saved_connection():
-            credential_path().unlink()
+        own = credential_path()
+        if own.exists() or own.is_symlink():
+            _check_private(own.parent, directory=True)
+            _check_private(own)
+            own.unlink()
         catalog_path().unlink(missing_ok=True)
+        if shared_status() == 'usable':
+            return {'status': 'ok', 'connection_status': 'configured_unverified', 'credential_source': 'shared',
+                    'guidance': "Gnomon's own credential removed, but the shared Ephemeris key file still connects it. Remove that with ephemeris auth logout (or ephemeris-mcp logout). Restart MCP."}
         return {'status': 'ok', 'connection_status': 'not_configured',
                 'guidance': 'Local credential removed. Restart MCP. Revoke the API key on Ephemeris to invalidate other copies.'}
     if args.refresh_models:
@@ -224,7 +279,7 @@ def connect(args):
         if not saved_connection():
             raise ForecastAdapterError('No saved Ephemeris connection. Run gnomon connect ephemeris first.')
         from .http_transport import JSONTransport
-        response = JSONTransport(GATEWAY_URL, token_file=credential_path()).call('/balance')
+        response = JSONTransport(GATEWAY_URL, token_file=active_credential_path()).call('/balance')
         return {'status': 'ok', 'connection_status': 'verified', 'balance_mc': response.get('balance_mc'),
                 'forecast_calls': 0, 'guidance': 'Authenticated balance check only; no forecast executed.'}
     if args.status:
