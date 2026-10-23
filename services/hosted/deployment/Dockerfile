@@ -1,4 +1,7 @@
 FROM python:3.13-slim AS build
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+     && rm -rf /var/lib/apt/lists/* \
+     && python -m pip --cert /etc/ssl/certs/ca-certificates.crt install --no-cache-dir --upgrade "pip>=26.2.2" "certifi>=2026.10.19"
 ARG GNOMON_BUILD_COMMIT
 ENV GNOMON_BUILD_COMMIT=${GNOMON_BUILD_COMMIT}
 WORKDIR /build/core
@@ -10,6 +13,9 @@ COPY services/hosted /build/hosted
 RUN python -m pip wheel --no-cache-dir --wheel-dir /wheels . /build/hosted
 
 FROM python:3.13-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+     && rm -rf /var/lib/apt/lists/* \
+     && python -m pip --cert /etc/ssl/certs/ca-certificates.crt install --no-cache-dir --upgrade "pip>=26.2.2" "certifi>=2026.10.19"
 ARG GNOMON_BUILD_COMMIT
 LABEL org.opencontainers.image.source="https://github.com/TensorLink-AI/Gnomon" \
       org.opencontainers.image.revision="${GNOMON_BUILD_COMMIT}"
